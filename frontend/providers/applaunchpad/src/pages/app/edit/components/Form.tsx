@@ -198,7 +198,6 @@ const Networks = ({
                   h={'32px'}
                   type={'number'}
                   w={'110px'}
-                  bg={'grayModern.50'}
                   {...register(`containers.${containerIndex}.networks.${i}.port`, {
                     required:
                       t('app.The container exposed port cannot be empty') ||
@@ -270,7 +269,6 @@ const Networks = ({
                       h={'32px'}
                       type={'number'}
                       w={'80px'}
-                      bg={'grayModern.50'}
                       {...register(`containers.${containerIndex}.networks.${i}.nodePort`, {
                         required:
                           t('app.The container exposed port cannot be empty') ||
@@ -859,9 +857,9 @@ const Form = ({
                 {t('Containers')}
               </Box>
               <TabList mx={'42px'} mt={'28px'}>
-                <Flex alignItems={'center'}>
+                <Flex alignItems={'center'} color={'#02A7F0'}>
                   {containers.map((item, containerIndex) => (
-                    <Tab key={item.id} gap={'8px'}>
+                    <Tab color={'#02A7F0'} key={item.id} gap={'8px'}>
                       {getValues(`containers.${containerIndex}.name`)}
                       <Center
                         onClick={() => {
@@ -909,7 +907,7 @@ const Form = ({
                     }
                   >
                     <MyIcon name="plus" mr={'4px'} w={'18px'} fill={'#485264'} />
-                    add Container
+                    添加容器
                   </Button>
                 </Flex>
               </TabList>
@@ -1204,11 +1202,11 @@ const Form = ({
                             <Label>{t('Run command')}</Label>
                             <Input
                               w={'350px'}
-                              bg={
-                                getValues(`containers.${containerIndex}.runCMD`)
-                                  ? 'myWhite.500'
-                                  : 'grayModern.100'
-                              }
+                              // bg={
+                              //   getValues(`containers.${containerIndex}.runCMD`)
+                              //     ? 'myWhite.500'
+                              //     : 'grayModern.100'
+                              // }
                               placeholder={`${t('Such as')} /bin/bash -c`}
                               {...register(`containers.${containerIndex}.runCMD`)}
                             />
@@ -1219,11 +1217,11 @@ const Form = ({
                             <Label>{t('Command parameters')}</Label>
                             <Input
                               w={'350px'}
-                              bg={
-                                getValues(`containers.${containerIndex}.cmdParam`)
-                                  ? 'myWhite.500'
-                                  : 'grayModern.100'
-                              }
+                              // bg={
+                              //   getValues(`containers.${containerIndex}.cmdParam`)
+                              //     ? 'myWhite.500'
+                              //     : 'grayModern.100'
+                              // }
                               placeholder={`${t('Such as')} sleep 10 && /entrypoint.sh db createdb`}
                               {...register(`containers.${containerIndex}.cmdParam`)}
                             />
