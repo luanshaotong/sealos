@@ -51,6 +51,8 @@ import PriceBox from './PriceBox';
 import QuotaBox from './QuotaBox';
 import type { StoreType } from './StoreModal';
 import styles from './index.module.scss';
+import { useQuery } from '@tanstack/react-query';
+import { getImageTags, getImages } from '@/api/app';
 
 const CustomAccessModal = dynamic(() => import('./CustomAccessModal'));
 const ConfigmapModal = dynamic(() => import('./ConfigmapModal'));
@@ -407,6 +409,7 @@ const Form = ({
   const { toast } = useToast();
   const { name } = router.query as QueryType;
   const theme = useTheme();
+  const [containerIndex, setContainerIndex] = useState(0);
   const isEdit = useMemo(() => !!name, [name]);
   const {
     register,
@@ -591,6 +594,18 @@ const Form = ({
   }, [formSliderListConfig, getValues]);
   const SliderList = useMemo(() => countSliderList(), [countSliderList, refresh]);
 
+  const { data: images } = useQuery(['getImages'], getImages);
+  const { data: imageTags } = useQuery(
+    ['getImageTags', getValues(`containers.${containerIndex}.imageRepo`), containerIndex],
+    () =>
+      getImageTags({
+        repository: getValues(`containers.${containerIndex}.imageRepo`)
+      }),
+    {
+      enabled: !!getValues(`containers.${containerIndex}.imageRepo`)
+    }
+  );
+
   return (
     <>
       <Grid
@@ -657,9 +672,9 @@ const Form = ({
               </Box>
             ))}
           </Box>
-          <Box mt={3} overflow={'hidden'}>
+          {/* <Box mt={3} overflow={'hidden'}>
             <QuotaBox />
-          </Box>
+          </Box> */}
           {userSourcePrice && (
             <Box mt={3} overflow={'hidden'}>
               <PriceBox
@@ -880,7 +895,9 @@ const Form = ({
                     onClick={() =>
                       appendContainer({
                         name: `container${containers.length + 1}`,
-                        imageName: 'nginx',
+                        imageName: 'nginx:latest',
+                        imageRepo: 'nginx',
+                        imageTag: 'latest',
                         runCMD: '',
                         cmdParam: '',
                         cpu: 100,
@@ -972,21 +989,63 @@ const Form = ({
                               <Box mb={1} fontSize={'sm'}>
                                 {t('Image Name')}
                               </Box>
-                              <Input
+                              <MySelect
+                                borderColor={'#02A7F0'}
+                                _hover={{
+                                  bg: 'white'
+                                }}
+                                bg={'white'}
                                 width={'350px'}
-                                value={getValues(`containers.${containerIndex}.imageName`)}
-                                backgroundColor={
-                                  getValues(`containers.${containerIndex}.imageName`)
-                                    ? 'myWhite.500'
-                                    : 'grayModern.100'
+                                value={getValues(`containers.${containerIndex}.imageRepo`)}
+                                list={
+                                  images?.repositories
+                                    ? images?.repositories.map((v: string) => ({
+                                        label: v,
+                                        value: v
+                                      }))
+                                    : []
                                 }
-                                placeholder={`${t('Image Name')}`}
-                                {...register(`containers.${containerIndex}.imageName`, {
-                                  required: 'Image name cannot be empty.',
-                                  setValueAs(e) {
-                                    return e.replace(/\s*/g, '');
+                                onchange={(val: any) => {
+                                  setContainerIndex(containerIndex);
+                                  setValue(`containers.${containerIndex}.imageRepo`, val);
+                                  const tag = getValues(`containers.${containerIndex}.imageTag`);
+                                  if (tag) {
+                                    setValue(
+                                      `containers.${containerIndex}.imageName`,
+                                      val + ':' + tag
+                                    );
+                                  } else {
+                                    setValue(`containers.${containerIndex}.imageTag`, '');
                                   }
-                                })}
+                                }}
+                              />
+                            </FormControl>
+                            <FormControl mt={'20px'} w={'420px'}>
+                              <Box mb={1} fontSize={'sm'}>
+                                镜像版本
+                              </Box>
+                              <MySelect
+                                borderColor={'#02A7F0'}
+                                _hover={{
+                                  bg: 'white'
+                                }}
+                                bg={'white'}
+                                width={'350px'}
+                                value={getValues(`containers.${containerIndex}.imageTag`)}
+                                list={
+                                  imageTags?.tags
+                                    ? imageTags?.tags?.map((v: string) => ({
+                                        label: v,
+                                        value: v
+                                      }))
+                                    : []
+                                }
+                                onchange={(val: any) => {
+                                  setValue(`containers.${containerIndex}.imageTag`, val);
+                                  const name =
+                                    getValues(`containers.${containerIndex}.imageRepo`) + ':' + val;
+                                  setValue(`containers.${containerIndex}.imageName`, name);
+                                }}
                               />
                             </FormControl>
                             {getValues(`containers.${containerIndex}.secret.use`) ? (
