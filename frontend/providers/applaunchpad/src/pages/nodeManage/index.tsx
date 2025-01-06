@@ -81,20 +81,29 @@ const AppList = ({
   
 
   const columns = [	
-    { title: 'ip', field: 'nickname' },
-    { title: '主机名', field: 'email' },
-    { title: '节点类型', field: 'phone' },
-    { title: '系统', field: 'tokenLink' },
-    { title: '内核版本', field: 'details' },
-    { title: 'cpu', field: 'details' },
-    { title: '内存', field: 'details' },
-    { title: '磁盘', field: 'details' },
-    { title: '操作', field: 'details' },
+    { title: 'ip', field: 'ip' },
+    { title: '主机名', field: 'hostName' },
+    { title: '节点类型', field: 'nodeType' },
+    { title: '系统', field: 'system' },
+    { title: '内核版本', field: 'kernelVersion' },
+    { title: 'cpu', field: 'cpu' },
+    { title: '内存', field: 'memory' },
+    { title: '磁盘', field: 'disk' },
+    { title: '操作', field: 'tool'},
   ];
   
   const data = [
-    // 这里添加你的数据
-    // 每个对象应该有和columns中field属性对应的键值对
+    {
+      ip:"192.168.21.3",
+      hostName:"master",
+      nodeType:"主节点",
+      system:"kylin",
+      kernelVersion:"kylin.v10",
+      cpu:"20%",
+      memory:"15%",
+      disk:"6%",
+      tool:"",
+    }
   ];
 
   const { isOpen, onOpen, onClose } = useDisclosure();
@@ -177,7 +186,7 @@ const AppList = ({
               <Tr key={rowIndex}>
                 {columns.map((column, colIndex) => (
                   <Td key={`${rowIndex}-${colIndex}`}>
-                    {row[column.field]}
+                    {row[column.field] !== '' ? row[column.field] : <Button size="sm">删除</Button> }
                   </Td>
                 ))}
               </Tr>

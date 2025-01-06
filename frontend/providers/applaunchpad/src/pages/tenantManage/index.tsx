@@ -83,14 +83,20 @@ const AppList = ({
     { title: '昵称', field: 'nickname' },
     { title: '邮箱', field: 'email' },
     { title: '电话', field: 'phone' },
-    { title: 'TOKEN链接', field: 'tokenLink' },
+    // { title: 'TOKEN链接', field: 'tokenLink' },
     { title: '详情', field: 'details' },
   ];
   
   const data = [
-    // 这里添加你的数据
-    // 每个对象应该有和columns中field属性对应的键值对
+    {
+      nickname:"张三",
+      email:"xxxxxqq.com",
+      phone:"18888888888",
+      // tokenLink:"1",
+      details:"",
+    }
   ];
+  
 
 
   return (
@@ -162,7 +168,7 @@ const AppList = ({
               <Tr key={rowIndex}>
                 {columns.map((column, colIndex) => (
                   <Td key={`${rowIndex}-${colIndex}`}>
-                    {row[column.field]}
+                    {row[column.field] !== '' ? row[column.field] : <Button size="sm">详情</Button> }
                   </Td>
                 ))}
               </Tr>
