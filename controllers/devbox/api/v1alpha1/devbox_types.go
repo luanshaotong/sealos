@@ -29,14 +29,24 @@ const (
 
 type DevboxState string
 
+// 1. Start
+// 2. None
+// 3. Restart
+// 4. Stop
+// 5. Commit
+// 6. Shutdown
 const (
-	// DevboxStateRunning means the Devbox is running
-	DevboxStateRunning DevboxState = "Running"
-	// DevboxStatePending means the Devbox is pending
-	DevboxStatePending DevboxState = "Pending"
-	// DevboxStateStopped means the Devbox is stopped
-	DevboxStateStopped DevboxState = "Stopped"
-	// DevboxStateShutdown means the devbox is shutdown
+	// DevboxStateStart means to start the Devbox
+	DevboxStateStart DevboxState = "Start"
+	// DevboxStateNone means the Devbox is under no operation
+	DevboxStateNone DevboxState = "None"
+	// DevboxStateRestart means to restart the Devbox
+	DevboxStateRestart DevboxState = "Restart"
+	// DevboxStateStop means to stop the Devbox
+	DevboxStateStop DevboxState = "Stop"
+	// DevboxStateCommit means to commit the Devbox
+	DevboxStateRelease DevboxState = "Release"
+	// DevboxStateShutdown means to shutdown the Devbox
 	DevboxStateShutdown DevboxState = "Shutdown"
 )
 
@@ -178,23 +188,38 @@ type CommitHistory struct {
 
 type DevboxPhase string
 
+// 1. Running
+// 2. Pending
+// 3. Restarting
+// 4. Stopping
+// 5. Commiting
+// 6. Shutdown
+// 7. Stoped
 const (
-	// DevboxPhaseRunning means Devbox is run and run success
+	// DevboxPhaseRunning means the Devbox is running
 	DevboxPhaseRunning DevboxPhase = "Running"
-	// DevboxPhasePending means Devbox is run but not run success
+	// DevboxPhasePending means the Devbox is pending
 	DevboxPhasePending DevboxPhase = "Pending"
-	//DevboxPhaseStopped means Devbox is stop and stopped success
-	DevboxPhaseStopped DevboxPhase = "Stopped"
-	//DevboxPhaseStopping means Devbox is stopping
+	// DevboxPhaseRestarting means the Devbox is restarting
+	DevboxPhaseRestarting DevboxPhase = "Restarting"
+	// DevboxPhaseStopping means the Devbox is stopping
 	DevboxPhaseStopping DevboxPhase = "Stopping"
-	//DevboxPhaseShutdown means Devbox is shutdown and service is deleted
+	// DevboxPhaseReleasing means the Devbox is releasing
+	DevboxPhaseReleasing DevboxPhase = "Releasing"
+	// DevboxPhaseCommitting means the Devbox is committing
+	DevboxPhaseCommitting DevboxPhase = "Committing"
+	// DevboxPhaseShutdown means the Devbox is shutdown
 	DevboxPhaseShutdown DevboxPhase = "Shutdown"
-	//DevboxPhaseShutting means Devbox is shutting
-	DevboxPhaseShutting DevboxPhase = "Shutting"
-	//DevboxPhaseError means Devbox is error
+	// DevboxPhaseShutdownCommitting means the Devbox is committing before shutdown
+	DevboxPhaseShutdownCommitting DevboxPhase = "ShutdownCommitting"
+	// DevboxPhaseStopped means the Devbox is stopped
+	DevboxPhaseStopped DevboxPhase = "Stopped"
+	// DevboxPhaseAdvancedStopped means the Devbox is advanced stopped
+	DevboxPhaseAdvancedStopped DevboxPhase = "AdvancedStopped"
+	// DevboxPhaseError means the Devbox is in error state
 	DevboxPhaseError DevboxPhase = "Error"
-	//DevboxPhaseUnknown means Devbox is unknown
-	DevboxPhaseUnknown DevboxPhase = "Unknown"
+	// DevboxPhaseNotChanged means the Devbox is not changed
+	DevboxPhaseNotChanged DevboxPhase = "NotChanged"
 )
 
 // DevboxStatus defines the observed state of Devbox

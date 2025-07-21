@@ -32,6 +32,7 @@ import (
 	devboxv1alpha1 "github.com/labring/sealos/controllers/devbox/api/v1alpha1"
 	utilsresource "github.com/labring/sealos/controllers/devbox/internal/controller/utils/resource"
 	"github.com/labring/sealos/controllers/devbox/label"
+	"github.com/labring/sealos/controllers/pkg/utils/logger"
 )
 
 const (
@@ -65,40 +66,6 @@ func GeneratePodAnnotations(devbox *devboxv1alpha1.Devbox) map[string]string {
 		}
 	}
 	return annotations
-}
-
-func GenerateDevboxPhase(devbox *devboxv1alpha1.Devbox, podList corev1.PodList) devboxv1alpha1.DevboxPhase {
-	if len(podList.Items) > 1 {
-		return devboxv1alpha1.DevboxPhaseError
-	}
-	switch devbox.Spec.State {
-	case devboxv1alpha1.DevboxStateRunning:
-		if len(podList.Items) == 0 {
-			return devboxv1alpha1.DevboxPhasePending
-		}
-		switch podList.Items[0].Status.Phase {
-		case corev1.PodFailed, corev1.PodSucceeded:
-			return devboxv1alpha1.DevboxPhaseStopped
-		case corev1.PodPending:
-			return devboxv1alpha1.DevboxPhasePending
-		case corev1.PodRunning:
-			if podList.Items[0].Status.ContainerStatuses[0].Ready && podList.Items[0].Status.ContainerStatuses[0].ContainerID != "" {
-				return devboxv1alpha1.DevboxPhaseRunning
-			}
-			return devboxv1alpha1.DevboxPhasePending
-		}
-	case devboxv1alpha1.DevboxStateStopped:
-		if len(podList.Items) == 0 {
-			return devboxv1alpha1.DevboxPhaseStopped
-		}
-		return devboxv1alpha1.DevboxPhaseStopping
-	case devboxv1alpha1.DevboxStateShutdown:
-		if len(podList.Items) == 0 {
-			return devboxv1alpha1.DevboxPhaseShutdown
-		}
-		return devboxv1alpha1.DevboxPhaseShutting
-	}
-	return devboxv1alpha1.DevboxPhaseUnknown
 }
 
 func MergeCommitHistory(devbox *devboxv1alpha1.Devbox, latestDevbox *devboxv1alpha1.Devbox) []*devboxv1alpha1.CommitHistory {
@@ -155,6 +122,38 @@ func UpdateDevboxStatus(current, latest *devboxv1alpha1.Devbox) {
 	latest.Status.State = current.Status.State
 	latest.Status.LastTerminationState = current.Status.LastTerminationState
 	latest.Status.CommitHistory = MergeCommitHistory(current, latest)
+}
+
+func GenerateDevboxPhase(devbox *devboxv1alpha1.Devbox) {
+	switch devbox.Status.Phase {
+	case devboxv1alpha1.DevboxPhaseRunning:
+		switch devbox.Spec.State {
+		case devboxv1alpha1.DevboxStateRestart:
+			devbox.Status.Phase = devboxv1alpha1.DevboxPhaseRestarting
+		case devboxv1alpha1.DevboxStateStop:
+			devbox.Status.Phase = devboxv1alpha1.DevboxPhaseStopping
+		case devboxv1alpha1.DevboxStateRelease:
+			devbox.Status.Phase = devboxv1alpha1.DevboxPhaseReleasing
+		case devboxv1alpha1.DevboxStateShutdown:
+			devbox.Status.Phase = devboxv1alpha1.DevboxPhaseShutdown
+		default:
+			// reject action as wrong status
+			devbox.Spec.State = devboxv1alpha1.DevboxStateNone
+		}
+	case devboxv1alpha1.DevboxPhasePending, devboxv1alpha1.DevboxPhaseRestarting, devboxv1alpha1.DevboxPhaseStopping, devboxv1alpha1.DevboxPhaseReleasing, devboxv1alpha1.DevboxPhaseCommitting, devboxv1alpha1.DevboxPhaseShutdown, devboxv1alpha1.DevboxPhaseShutdownCommitting:
+		// reject action as wrong status
+		devbox.Spec.State = devboxv1alpha1.DevboxStateNone
+	case devboxv1alpha1.DevboxPhaseStopped, devboxv1alpha1.DevboxPhaseAdvancedStopped:
+		switch devbox.Spec.State {
+		case devboxv1alpha1.DevboxStateStart:
+			devbox.Status.Phase = devboxv1alpha1.DevboxPhasePending
+		default:
+			// reject action as wrong status
+			devbox.Spec.State = devboxv1alpha1.DevboxStateNone
+		}
+	default:
+		logger.Error(fmt.Errorf("unknown devbox phase: %s", devbox.Status.Phase), "update devbox status failed")
+	}
 }
 
 func UpdateCommitHistory(devbox *devboxv1alpha1.Devbox, pod *corev1.Pod, updateStatus bool) {
