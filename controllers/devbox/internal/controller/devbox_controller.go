@@ -89,7 +89,11 @@ func (r *DevboxReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 		lock = &sync.Mutex{}
 		devboxLocks[devboxFullName] = lock
 	}
-	lock.Lock()
+	ok := lock.TryLock()
+	if !ok {
+		logger.Info("devbox is being processed by another request, skipping", "devbox", devboxFullName)
+		return ctrl.Result{RequeueAfter: 5 * time.Second}, nil
+	}
 	defer lock.Unlock()
 
 	devbox := &devboxv1alpha1.Devbox{}
@@ -118,7 +122,7 @@ func (r *DevboxReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 		if err != nil {
 			return ctrl.Result{}, err
 		}
-	} else {
+	} else if devbox.Status.Phase == devboxv1alpha1.DevboxPhaseStopped {
 		logger.Info("devbox deleted, remove all resources")
 		if err := r.removeAll(ctx, devbox, recLabels); err != nil {
 			return ctrl.Result{}, err
@@ -131,6 +135,14 @@ func (r *DevboxReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 			}
 		}
 		return ctrl.Result{}, nil
+	} else {
+		devbox.Spec.Action = devboxv1alpha1.DevboxActionShutdown
+		err := r.Update(ctx, devbox)
+		if err != nil {
+			logger.Error(err, "failed to update devbox action to Shutdown")
+			r.Recorder.Eventf(devbox, corev1.EventTypeWarning, "Update devbox action failed", "%v", err)
+			return ctrl.Result{}, err
+		}
 	}
 
 	devbox.Status.Network.Type = devbox.Spec.NetworkSpec.Type
@@ -173,11 +185,13 @@ func (r *DevboxReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 	if newStatus != devboxv1alpha1.DevboxPhaseNotChanged {
 		logger.Info("devbox phase changed", "newPhase", newStatus)
 		devbox.Status.Phase = newStatus
-		if err := r.Status().Update(ctx, devbox); err != nil {
-			logger.Error(err, "update devbox status failed")
-			r.Recorder.Eventf(devbox, corev1.EventTypeWarning, "Update devbox status failed", "%v", err)
-			return ctrl.Result{}, err
-		}
+		// set state to None because we have processed the action
+		devbox.Spec.Action = devboxv1alpha1.DevboxActionNone
+	}
+	if err := r.Status().Update(ctx, devbox); err != nil {
+		logger.Error(err, "update devbox status failed")
+		r.Recorder.Eventf(devbox, corev1.EventTypeWarning, "Update devbox status failed", "%v", err)
+		return ctrl.Result{}, err
 	}
 
 	logger.Info("devbox reconcile success")
@@ -271,28 +285,6 @@ func (r *DevboxReconciler) syncPod(ctx context.Context, devbox *devboxv1alpha1.D
 	}
 	logger.Info("pod list", "length", len(podList.Items))
 
-	// update devbox status after pod is created or updated
-	defer func() {
-		if err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
-			logger.Info("update devbox status after pod synced")
-			latestDevbox := &devboxv1alpha1.Devbox{}
-			if err := r.Client.Get(ctx, client.ObjectKey{Namespace: devbox.Namespace, Name: devbox.Name}, latestDevbox); err != nil {
-				logger.Error(err, "get latest devbox failed")
-				return err
-			}
-			// update devbox status with latestDevbox status
-			logger.Info("updating devbox status")
-			logger.Info("merge commit history", "devbox", devbox.Status.CommitHistory, "latestDevbox", latestDevbox.Status.CommitHistory)
-			return r.Status().Update(ctx, latestDevbox)
-		}); err != nil {
-			logger.Error(err, "sync pod failed")
-			r.Recorder.Eventf(devbox, corev1.EventTypeWarning, "Sync pod failed", "%v", err)
-			return
-		}
-		logger.Info("update devbox status success")
-		r.Recorder.Eventf(devbox, corev1.EventTypeNormal, "Sync pod success", "Sync pod success")
-	}()
-
 	switch devbox.Status.Phase {
 	case devboxv1alpha1.DevboxPhaseRunning:
 		nextCommitHistory := r.generateNextCommitHistory(devbox)
@@ -366,7 +358,7 @@ func (r *DevboxReconciler) syncPod(ctx context.Context, devbox *devboxv1alpha1.D
 		return devboxv1alpha1.DevboxPhaseNotChanged
 	case devboxv1alpha1.DevboxPhasePending:
 		return devboxv1alpha1.DevboxPhaseNotChanged
-	case devboxv1alpha1.DevboxPhaseRestarting, devboxv1alpha1.DevboxPhaseStopping, devboxv1alpha1.DevboxPhaseReleasing,
+	case devboxv1alpha1.DevboxPhaseRestarting, devboxv1alpha1.DevboxPhaseAdvancedStopping, devboxv1alpha1.DevboxPhaseReleasing,
 		devboxv1alpha1.DevboxPhaseShutdown, devboxv1alpha1.DevboxPhaseCommitting, devboxv1alpha1.DevboxPhaseShutdownCommitting,
 		devboxv1alpha1.DevboxPhaseStopped, devboxv1alpha1.DevboxPhaseAdvancedStopped:
 		switch len(podList.Items) {
@@ -376,17 +368,11 @@ func (r *DevboxReconciler) syncPod(ctx context.Context, devbox *devboxv1alpha1.D
 				return devboxv1alpha1.DevboxPhaseCommitting
 			case devboxv1alpha1.DevboxPhaseRestarting:
 				return devboxv1alpha1.DevboxPhaseRunning
-			case devboxv1alpha1.DevboxPhaseStopping:
-				return devboxv1alpha1.DevboxPhaseStopped
+			case devboxv1alpha1.DevboxPhaseAdvancedStopping:
+				return devboxv1alpha1.DevboxPhaseAdvancedStopped
 			case devboxv1alpha1.DevboxPhaseShutdown:
 				return devboxv1alpha1.DevboxPhaseShutdownCommitting
-			case devboxv1alpha1.DevboxPhaseCommitting:
-				return devboxv1alpha1.DevboxPhaseNotChanged
-			case devboxv1alpha1.DevboxPhaseShutdownCommitting:
-				return devboxv1alpha1.DevboxPhaseNotChanged
-			case devboxv1alpha1.DevboxPhaseStopped:
-				return devboxv1alpha1.DevboxPhaseNotChanged
-			case devboxv1alpha1.DevboxPhaseAdvancedStopped:
+			default:
 				return devboxv1alpha1.DevboxPhaseNotChanged
 			}
 		case 1:
@@ -556,6 +542,7 @@ func (r *DevboxReconciler) deletePod(ctx context.Context, devbox *devboxv1alpha1
 
 func (r *DevboxReconciler) handlePodDeleted(ctx context.Context, devbox *devboxv1alpha1.Devbox, pod *corev1.Pod) error {
 	logger := log.FromContext(ctx)
+	devbox.Status.CurrentNode = pod.Spec.NodeName
 	controllerutil.RemoveFinalizer(pod, devboxv1alpha1.FinalizerName)
 	if err := r.Update(ctx, pod); err != nil {
 		logger.Error(err, "remove finalizer failed")

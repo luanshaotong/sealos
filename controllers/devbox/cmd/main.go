@@ -47,7 +47,6 @@ import (
 	devboxv1alpha1 "github.com/labring/sealos/controllers/devbox/api/v1alpha1"
 	"github.com/labring/sealos/controllers/devbox/internal/controller"
 	"github.com/labring/sealos/controllers/devbox/internal/controller/utils/matcher"
-	"github.com/labring/sealos/controllers/devbox/internal/controller/utils/registry"
 	utilresource "github.com/labring/sealos/controllers/devbox/internal/controller/utils/resource"
 	// +kubebuilder:scaffold:imports
 )
@@ -93,43 +92,85 @@ func main() {
 	var configBurst int
 	// config restart predicate duration
 	var restartPredicateDuration time.Duration
-	flag.StringVar(&metricsAddr, "metrics-bind-address", "0", "The address the metrics endpoint binds to. "+
+	controllerCmd := flag.NewFlagSet("controller", flag.ExitOnError)
+	controllerCmd.StringVar(&metricsAddr, "metrics-bind-address", "0", "The address the metrics endpoint binds to. "+
 		"Use :8443 for HTTPS or :8080 for HTTP, or leave as 0 to disable the metrics service.")
-	flag.StringVar(&probeAddr, "health-probe-bind-address", ":8081", "The address the probe endpoint binds to.")
-	flag.BoolVar(&enableLeaderElection, "leader-elect", false,
+	controllerCmd.StringVar(&probeAddr, "health-probe-bind-address", ":8081", "The address the probe endpoint binds to.")
+	controllerCmd.BoolVar(&enableLeaderElection, "leader-elect", false,
 		"Enable leader election for controller manager. "+
 			"Enabling this will ensure there is only one active controller manager.")
-	flag.BoolVar(&secureMetrics, "metrics-secure", true,
+	controllerCmd.BoolVar(&secureMetrics, "metrics-secure", true,
 		"If set, the metrics endpoint is served securely via HTTPS. Use --metrics-secure=false to use HTTP instead.")
-	flag.BoolVar(&enableHTTP2, "enable-http2", false,
+	controllerCmd.BoolVar(&enableHTTP2, "enable-http2", false,
 		"If set, HTTP/2 will be enabled for the metrics and webhook servers")
 	// debug flag
-	flag.BoolVar(&debugMode, "debug", false, "If set, debug mode will be enabled")
-	// registry flag
-	flag.StringVar(&registryAddr, "registry-addr", "sealos.hub:5000", "The address of the registry")
-	flag.StringVar(&registryUser, "registry-user", "admin", "The user of the registry")
-	flag.StringVar(&registryPassword, "registry-password", "passw0rd", "The password of the registry")
+	controllerCmd.BoolVar(&debugMode, "debug", false, "If set, debug mode will be enabled")
 	// resource flag
-	flag.Float64Var(&requestCPURate, "request-cpu-rate", 10, "The request rate of cpu limit in devbox.")
-	flag.Float64Var(&requestMemoryRate, "request-memory-rate", 10, "The request rate of memory limit in devbox.")
-	flag.StringVar(&requestEphemeralStorage, "request-ephemeral-storage", "500Mi", "The default request value of ephemeral storage in devbox.")
-	flag.StringVar(&limitEphemeralStorage, "limit-ephemeral-storage", "10Gi", "The default limit value of ephemeral storage in devbox.")
-	flag.StringVar(&maximumLimitEphemeralStorage, "maximum-limit-ephemeral-storage", "50Gi", "The maximum limit value of ephemeral storage in devbox.")
+	controllerCmd.Float64Var(&requestCPURate, "request-cpu-rate", 10, "The request rate of cpu limit in devbox.")
+	controllerCmd.Float64Var(&requestMemoryRate, "request-memory-rate", 10, "The request rate of memory limit in devbox.")
+	controllerCmd.StringVar(&requestEphemeralStorage, "request-ephemeral-storage", "500Mi", "The default request value of ephemeral storage in devbox.")
+	controllerCmd.StringVar(&limitEphemeralStorage, "limit-ephemeral-storage", "10Gi", "The default limit value of ephemeral storage in devbox.")
+	controllerCmd.StringVar(&maximumLimitEphemeralStorage, "maximum-limit-ephemeral-storage", "50Gi", "The maximum limit value of ephemeral storage in devbox.")
 	// pod matcher flag, pod resource matcher, env matcher, port matcher will be enabled by default, ephemeral storage matcher will be disabled by default
-	flag.BoolVar(&enablePodResourceMatcher, "enable-pod-resource-matcher", true, "If set, pod resource matcher will be enabled")
-	flag.BoolVar(&enablePodEnvMatcher, "enable-pod-env-matcher", true, "If set, pod env matcher will be enabled")
-	flag.BoolVar(&enablePodPortMatcher, "enable-pod-port-matcher", true, "If set, pod port matcher will be enabled")
-	flag.BoolVar(&enablePodEphemeralStorageMatcher, "enable-pod-ephemeral-storage-matcher", false, "If set, pod ephemeral storage matcher will be enabled")
+	controllerCmd.BoolVar(&enablePodResourceMatcher, "enable-pod-resource-matcher", true, "If set, pod resource matcher will be enabled")
+	controllerCmd.BoolVar(&enablePodEnvMatcher, "enable-pod-env-matcher", true, "If set, pod env matcher will be enabled")
+	controllerCmd.BoolVar(&enablePodPortMatcher, "enable-pod-port-matcher", true, "If set, pod port matcher will be enabled")
+	controllerCmd.BoolVar(&enablePodEphemeralStorageMatcher, "enable-pod-ephemeral-storage-matcher", false, "If set, pod ephemeral storage matcher will be enabled")
 	// config qps and burst
-	flag.IntVar(&configQPS, "config-qps", 50, "The qps of the config")
-	flag.IntVar(&configBurst, "config-burst", 100, "The burst of the config")
+	controllerCmd.IntVar(&configQPS, "config-qps", 50, "The qps of the config")
+	controllerCmd.IntVar(&configBurst, "config-burst", 100, "The burst of the config")
 	// config restart predicate duration
-	flag.DurationVar(&restartPredicateDuration, "restart-predicate-duration", 2*time.Hour, "Sets the restart predicate time duration for devbox controller restart. By default, the duration is set to 2 hours.")
+	controllerCmd.DurationVar(&restartPredicateDuration, "restart-predicate-duration", 2*time.Hour, "Sets the restart predicate time duration for devbox controller restart. By default, the duration is set to 2 hours.")
+
+	daemonCmd := flag.NewFlagSet("daemon", flag.ExitOnError)
+	daemonCmd.StringVar(&metricsAddr, "metrics-bind-address", "0", "The address the metrics endpoint binds to. "+
+		"Use :8443 for HTTPS or :8080 for HTTP, or leave as 0 to disable the metrics service.")
+	daemonCmd.StringVar(&probeAddr, "health-probe-bind-address", ":8081", "The address the probe endpoint binds to.")
+	daemonCmd.BoolVar(&enableLeaderElection, "leader-elect", false,
+		"Enable leader election for controller manager. "+
+			"Enabling this will ensure there is only one active controller manager.")
+	daemonCmd.BoolVar(&secureMetrics, "metrics-secure", true,
+		"If set, the metrics endpoint is served securely via HTTPS. Use --metrics-secure=false to use HTTP instead.")
+	daemonCmd.BoolVar(&enableHTTP2, "enable-http2", false,
+		"If set, HTTP/2 will be enabled for the metrics and webhook servers")
+	// registry flag
+	daemonCmd.StringVar(&registryAddr, "registry-addr", "sealos.hub:5000", "The address of the registry")
+	daemonCmd.StringVar(&registryUser, "registry-user", "admin", "The user of the registry")
+	daemonCmd.StringVar(&registryPassword, "registry-password", "passw0rd", "The password of the registry")
+	// debug flag
+	daemonCmd.BoolVar(&debugMode, "debug", false, "If set, debug mode will be enabled")
+	// config qps and burst
+	daemonCmd.IntVar(&configQPS, "config-qps", 50, "The qps of the config")
+	daemonCmd.IntVar(&configBurst, "config-burst", 100, "The burst of the config")
+	// config restart predicate duration
+	daemonCmd.DurationVar(&restartPredicateDuration, "restart-predicate-duration", 2*time.Hour, "Sets the restart predicate time duration for devbox controller restart. By default, the duration is set to 2 hours.")
+
 	opts := zap.Options{
 		Development: true,
 	}
-	opts.BindFlags(flag.CommandLine)
-	flag.Parse()
+	if len(os.Args) < 2 {
+		setupLog.Error(nil, "no command specified")
+		os.Exit(1)
+	}
+	switch os.Args[1] {
+	case "controller":
+		opts.BindFlags(controllerCmd)
+		if err := controllerCmd.Parse(os.Args[2:]); err != nil {
+			setupLog.Error(err, "failed to parse controller flags")
+			os.Exit(1)
+		}
+	case "daemon":
+		opts.BindFlags(daemonCmd)
+		if err := daemonCmd.Parse(os.Args[2:]); err != nil {
+			setupLog.Error(err, "failed to parse daemon flags")
+			os.Exit(1)
+		}
+	default:
+		setupLog.Error(nil, "unknown command", "command", os.Args[1])
+		os.Exit(1)
+	}
+	// opts.BindFlags(flag.CommandLine)
+	// flag.Parse()
 
 	ctrl.SetLogger(zap.New(zap.UseFlagOptions(&opts)))
 
@@ -236,39 +277,65 @@ func main() {
 		podMatchers = append(podMatchers, matcher.EphemeralStorageMatcher{})
 	}
 
-	if err = (&controller.DevboxReconciler{
-		Client:              mgr.GetClient(),
-		Scheme:              mgr.GetScheme(),
-		CommitImageRegistry: registryAddr,
-		Recorder:            mgr.GetEventRecorderFor("devbox-controller"),
-		RequestRate: utilresource.RequestRate{
-			CPU:    requestCPURate,
-			Memory: requestMemoryRate,
-		},
-		EphemeralStorage: utilresource.EphemeralStorage{
-			DefaultRequest: resource.MustParse(requestEphemeralStorage),
-			DefaultLimit:   resource.MustParse(limitEphemeralStorage),
-			MaximumLimit:   resource.MustParse(maximumLimitEphemeralStorage),
-		},
-		PodMatchers:              podMatchers,
-		DebugMode:                debugMode,
-		RestartPredicateDuration: restartPredicateDuration,
-	}).SetupWithManager(mgr); err != nil {
-		setupLog.Error(err, "unable to create controller", "controller", "Devbox")
-		os.Exit(1)
+	switch os.Args[1] {
+	case "controller":
+		if err = (&controller.DevboxReconciler{
+			Client:              mgr.GetClient(),
+			Scheme:              mgr.GetScheme(),
+			CommitImageRegistry: registryAddr,
+			Recorder:            mgr.GetEventRecorderFor("devbox-controller"),
+			RequestRate: utilresource.RequestRate{
+				CPU:    requestCPURate,
+				Memory: requestMemoryRate,
+			},
+			EphemeralStorage: utilresource.EphemeralStorage{
+				DefaultRequest: resource.MustParse(requestEphemeralStorage),
+				DefaultLimit:   resource.MustParse(limitEphemeralStorage),
+				MaximumLimit:   resource.MustParse(maximumLimitEphemeralStorage),
+			},
+			PodMatchers:              podMatchers,
+			DebugMode:                debugMode,
+			RestartPredicateDuration: restartPredicateDuration,
+		}).SetupWithManager(mgr); err != nil {
+			setupLog.Error(err, "unable to create controller", "controller", "Devbox")
+			os.Exit(1)
+		}
+	case "daemon":
+		if err = (&controller.DevboxDaemonReconciler{
+			CommitImageRegistry: registryAddr,
+			RequestRate: utilresource.RequestRate{
+				CPU:    requestCPURate,
+				Memory: requestMemoryRate,
+			},
+			EphemeralStorage: utilresource.EphemeralStorage{
+				DefaultRequest: resource.MustParse(requestEphemeralStorage),
+				DefaultLimit:   resource.MustParse(limitEphemeralStorage),
+				MaximumLimit:   resource.MustParse(maximumLimitEphemeralStorage),
+			},
+			PodMatchers:              podMatchers,
+			DebugMode:                debugMode,
+			Client:                   mgr.GetClient(),
+			Scheme:                   mgr.GetScheme(),
+			Recorder:                 mgr.GetEventRecorderFor("devbox-daemon-controller"),
+			RestartPredicateDuration: restartPredicateDuration,
+		}).SetupWithManager(mgr); err != nil {
+			setupLog.Error(err, "unable to create controller", "controller", "DevboxDaemon")
+			os.Exit(1)
+		}
 	}
 
-	if err = (&controller.DevBoxReleaseReconciler{
-		Client: mgr.GetClient(),
-		Scheme: mgr.GetScheme(),
-		Registry: &registry.Client{
-			Username: registryUser,
-			Password: registryPassword,
-		},
-	}).SetupWithManager(mgr); err != nil {
-		setupLog.Error(err, "unable to create controller", "controller", "DevBoxRelease")
-		os.Exit(1)
-	}
+	// if err = (&controller.DevBoxReleaseReconciler{
+	// 	Client: mgr.GetClient(),
+	// 	Scheme: mgr.GetScheme(),
+	// 	Registry: &registry.Client{
+	// 		Username: registryUser,
+	// 		Password: registryPassword,
+	// 	},
+	// }).SetupWithManager(mgr); err != nil {
+	// 	setupLog.Error(err, "unable to create controller", "controller", "DevBoxRelease")
+	// 	os.Exit(1)
+	// }
+
 	//if err = (&controller.OperationRequestReconciler{
 	//	CommitImageRegistry: registryAddr,
 	//	Client:              mgr.GetClient(),

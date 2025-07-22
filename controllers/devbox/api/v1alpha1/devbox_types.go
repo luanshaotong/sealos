@@ -27,7 +27,7 @@ const (
 	DevBoxPartOf  = "devbox"
 )
 
-type DevboxState string
+type DevboxAction string
 
 // 1. Start
 // 2. None
@@ -36,18 +36,18 @@ type DevboxState string
 // 5. Commit
 // 6. Shutdown
 const (
-	// DevboxStateStart means to start the Devbox
-	DevboxStateStart DevboxState = "Start"
-	// DevboxStateNone means the Devbox is under no operation
-	DevboxStateNone DevboxState = "None"
-	// DevboxStateRestart means to restart the Devbox
-	DevboxStateRestart DevboxState = "Restart"
-	// DevboxStateStop means to stop the Devbox
-	DevboxStateStop DevboxState = "Stop"
+	// DevboxActionStart means to start the Devbox
+	DevboxActionStart DevboxAction = "Start"
+	// DevboxActionNone means the Devbox is under no operation
+	DevboxActionNone DevboxAction = "None"
+	// DevboxActionRestart means to restart the Devbox
+	DevboxActionRestart DevboxAction = "Restart"
+	// DevboxActionStop means to stop the Devbox
+	DevboxActionStop DevboxAction = "Stop"
 	// DevboxStateCommit means to commit the Devbox
-	DevboxStateRelease DevboxState = "Release"
-	// DevboxStateShutdown means to shutdown the Devbox
-	DevboxStateShutdown DevboxState = "Shutdown"
+	DevboxActionRelease DevboxAction = "Release"
+	// DevboxActionShutdown means to shutdown the Devbox
+	DevboxActionShutdown DevboxAction = "Shutdown"
 )
 
 type NetworkType string
@@ -117,7 +117,7 @@ type Config struct {
 type DevboxSpec struct {
 	// +kubebuilder:validation:Required
 	// +kubebuilder:validation:Enum=Running;Stopped;Shutdown
-	State DevboxState `json:"state"`
+	Action DevboxAction `json:"state"`
 	// +kubebuilder:validation:Required
 	Resource corev1.ResourceList `json:"resource"`
 
@@ -202,8 +202,8 @@ const (
 	DevboxPhasePending DevboxPhase = "Pending"
 	// DevboxPhaseRestarting means the Devbox is restarting
 	DevboxPhaseRestarting DevboxPhase = "Restarting"
-	// DevboxPhaseStopping means the Devbox is stopping
-	DevboxPhaseStopping DevboxPhase = "Stopping"
+	// DevboxPhaseAdvancedStopping means the Devbox is stopping
+	DevboxPhaseAdvancedStopping DevboxPhase = "Stopping"
 	// DevboxPhaseReleasing means the Devbox is releasing
 	DevboxPhaseReleasing DevboxPhase = "Releasing"
 	// DevboxPhaseCommitting means the Devbox is committing
@@ -235,6 +235,13 @@ type DevboxStatus struct {
 	State corev1.ContainerState `json:"state"`
 	// +kubebuilder:validation:Optional
 	LastTerminationState corev1.ContainerState `json:"lastState"`
+	// +kubebuilder:validation:Optional
+	CurrentNode string `json:"currentNode,omitempty"`
+	// +kubebuilder:validation:Optional
+	CurrentImage string `json:"currentImage,omitempty"`
+	// +kubebuilder:validation:Optional
+	ContentID string `json:"contentID,omitempty"`
+	// +kubebuilder:validation:Optional
 }
 
 // +kubebuilder:object:root=true

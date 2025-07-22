@@ -127,29 +127,41 @@ func UpdateDevboxStatus(current, latest *devboxv1alpha1.Devbox) {
 func GenerateDevboxPhase(devbox *devboxv1alpha1.Devbox) {
 	switch devbox.Status.Phase {
 	case devboxv1alpha1.DevboxPhaseRunning:
-		switch devbox.Spec.State {
-		case devboxv1alpha1.DevboxStateRestart:
+		switch devbox.Spec.Action {
+		case devboxv1alpha1.DevboxActionRestart:
 			devbox.Status.Phase = devboxv1alpha1.DevboxPhaseRestarting
-		case devboxv1alpha1.DevboxStateStop:
-			devbox.Status.Phase = devboxv1alpha1.DevboxPhaseStopping
-		case devboxv1alpha1.DevboxStateRelease:
+		case devboxv1alpha1.DevboxActionStop:
+			devbox.Status.Phase = devboxv1alpha1.DevboxPhaseAdvancedStopping
+		case devboxv1alpha1.DevboxActionRelease:
 			devbox.Status.Phase = devboxv1alpha1.DevboxPhaseReleasing
-		case devboxv1alpha1.DevboxStateShutdown:
+		case devboxv1alpha1.DevboxActionShutdown:
 			devbox.Status.Phase = devboxv1alpha1.DevboxPhaseShutdown
 		default:
 			// reject action as wrong status
-			devbox.Spec.State = devboxv1alpha1.DevboxStateNone
+			devbox.Spec.Action = devboxv1alpha1.DevboxActionNone
 		}
-	case devboxv1alpha1.DevboxPhasePending, devboxv1alpha1.DevboxPhaseRestarting, devboxv1alpha1.DevboxPhaseStopping, devboxv1alpha1.DevboxPhaseReleasing, devboxv1alpha1.DevboxPhaseCommitting, devboxv1alpha1.DevboxPhaseShutdown, devboxv1alpha1.DevboxPhaseShutdownCommitting:
+	case devboxv1alpha1.DevboxPhasePending, devboxv1alpha1.DevboxPhaseRestarting, devboxv1alpha1.DevboxPhaseAdvancedStopping,
+		devboxv1alpha1.DevboxPhaseReleasing, devboxv1alpha1.DevboxPhaseCommitting, devboxv1alpha1.DevboxPhaseShutdown,
+		devboxv1alpha1.DevboxPhaseShutdownCommitting:
 		// reject action as wrong status
-		devbox.Spec.State = devboxv1alpha1.DevboxStateNone
-	case devboxv1alpha1.DevboxPhaseStopped, devboxv1alpha1.DevboxPhaseAdvancedStopped:
-		switch devbox.Spec.State {
-		case devboxv1alpha1.DevboxStateStart:
+		devbox.Spec.Action = devboxv1alpha1.DevboxActionNone
+	case devboxv1alpha1.DevboxPhaseStopped:
+		switch devbox.Spec.Action {
+		case devboxv1alpha1.DevboxActionStart:
 			devbox.Status.Phase = devboxv1alpha1.DevboxPhasePending
 		default:
 			// reject action as wrong status
-			devbox.Spec.State = devboxv1alpha1.DevboxStateNone
+			devbox.Spec.Action = devboxv1alpha1.DevboxActionNone
+		}
+	case devboxv1alpha1.DevboxPhaseAdvancedStopped:
+		switch devbox.Spec.Action {
+		case devboxv1alpha1.DevboxActionStart:
+			devbox.Status.Phase = devboxv1alpha1.DevboxPhasePending
+		case devboxv1alpha1.DevboxActionShutdown:
+			devbox.Status.Phase = devboxv1alpha1.DevboxPhaseShutdown
+		default:
+			// reject action as wrong status
+			devbox.Spec.Action = devboxv1alpha1.DevboxActionNone
 		}
 	default:
 		logger.Error(fmt.Errorf("unknown devbox phase: %s", devbox.Status.Phase), "update devbox status failed")
