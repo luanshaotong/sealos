@@ -74,7 +74,7 @@ def upload_deploy_helper(file_path, namespace, appname, images):
 
 
 def get_db_connection():
-    conn = sqlite3.connect('rbac.db')
+    conn = sqlite3.connect('/root/app/rbac.db')
     conn.row_factory = sqlite3.Row
     return conn
 
@@ -299,6 +299,7 @@ def deploy_app_with_image():
     modelName = request.json.get('modelName')
     modelCode = request.json.get('modelCode')
     modelVersion = request.json.get('versionTag')
+    liveProbe = request.json.get('liveProbe')
     if not file_path:
         return jsonify({'error': 'Path is required'}), 400  
     ports = request.json.get('ports')
@@ -307,9 +308,9 @@ def deploy_app_with_image():
     namespace = request.args.get('namespace')
     appname = request.args.get('appname')  # 获取新的appname参数
 
-    return deployAppWithImage(file_path, modelName, modelCode, modelVersion, namespace, appname, ports)
+    return deployAppWithImage(file_path, modelName, modelCode, modelVersion,liveProbe, namespace, appname, ports)
 
-def deployAppWithImage(file_path, modelName, modelCode, modelVersion, namespace=None, appname=None, ports={}):
+def deployAppWithImage(file_path, modelName, modelCode, modelVersion,liveProbe, namespace=None, appname=None, ports={}):
     """部署应用程序"""
     
     with open(os.path.join(file_path, 'metadata.json'), 'r') as file:
@@ -341,7 +342,8 @@ def deployAppWithImage(file_path, modelName, modelCode, modelVersion, namespace=
         # 替换annotations中的模型信息
         annotations = single_yaml.get('metadata', {}).get('annotations', {})
         annotations['cloud.sealos.io/model-name'] = modelName
-        annotations['cloud.sealos.io/model-version'] = modelCode
+        annotations['cloud.sealos.io/model-version'] = modelVersion
+        annotations['cloud.sealos.io/pre-inspection'] = liveProbe
         annotations['cloud.sealos.io/model-type'] = 'model'
         # 替换selector中的app名称
         if single_yaml.get('kind') == 'Service':
