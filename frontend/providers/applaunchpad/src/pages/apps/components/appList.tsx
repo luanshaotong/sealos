@@ -176,17 +176,17 @@ const AppList = ({
           );
         }
       },
-      {
-        title: '预检链接',
-        key: 'preInspection',
-        render: (item: AppListItemType) => {
-          return (
-            <Box pl={4} color={'myGray.900'} fontSize={'md'} fontWeight={'bold'}>
-              {item.preInspection}
-            </Box>
-          );
-        }
-      },
+      // {
+      //   title: '预检链接',
+      //   key: 'preInspection',
+      //   render: (item: AppListItemType) => {
+      //     return (
+      //       <Box pl={4} color={'myGray.900'} fontSize={'md'} fontWeight={'bold'}>
+      //         {item.preInspection}
+      //       </Box>
+      //     );
+      //   }
+      // },
       {
         title: t('Name'),
         key: 'name',

@@ -596,10 +596,10 @@ const AppList = ({
                                   column.field === 'result' ? row[9] :
                                     column.field === 'max_resource' ? row[10] :
                                       column.field === 'operate' ? <>
-                                        {
+                                        {/* {
                                           row[12] === 'processing' ?
                                             <Button isLoading={calcLoading === row[0]} style={{marginRight: 4}} size="sm" onClick={() => { startCalculate(row) }}>{calcLoading === row[0] ? '测算中' : '开始'}</Button> : null
-                                        }
+                                        } */}
                                         <Button bgColor={'red'} colorScheme='red' _hover={{ bgColor: 'red' }} size="sm" onClick={() => { deleteNodeModel(row) }}>删除</Button>
                                       </> : row[column.field]}
                   </Td>

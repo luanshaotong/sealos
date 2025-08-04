@@ -20,7 +20,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
     // 解析表单数据
     const form = formidable({
       keepExtensions: true,
-      maxFileSize: 1000 * 1024 * 1024 // 1000MB limit
+      maxFileSize: 10000 * 1024 * 1024 // 1000MB limit
     });
 
     const [fields, files] = await form.parse(req);

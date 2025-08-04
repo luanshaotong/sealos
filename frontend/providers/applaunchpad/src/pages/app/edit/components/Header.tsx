@@ -122,29 +122,31 @@ const Header = ({
       </Flex>
       <Box flex={1}></Box>
 
-      {isEdit && (
-        <MySelect
-          mr={'14px'}
-          borderColor={'#02A7F0'}
-          _hover={{
-            bg: 'white'
-          }}
-          bg={'white'}
-          width={'120px'}
-          value={formHook?.getValues('nodeName') || ''}
-          list={
-            nodesData
-              ? nodesData?.map((item) => ({
+      {(
+        <div style={{marginRight:14}}>
+          <MySelect
+            mr={'14px'}
+            borderColor={'#02A7F0'}
+            _hover={{
+              bg: 'white'
+            }}
+            bg={'white'}
+            width={'120px'}
+            value={formHook?.getValues('nodeName') || ''}
+            list={
+              nodesData
+                ? nodesData?.map((item) => ({
                   label: item.name,
                   value: item.name
                 }))
-              : []
-          }
-          onchange={(val: any) => {
-            formHook?.setValue('nodeName', val);
-            applyCb();
-          }}
-        />
+                : []
+            }
+            onchange={(val: any) => {
+              formHook?.setValue('nodeName', val);
+              applyCb();
+            }}
+          />
+        </div>
       )}
 
       {isEdit && (

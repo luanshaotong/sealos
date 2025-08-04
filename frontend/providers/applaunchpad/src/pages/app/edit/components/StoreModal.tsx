@@ -82,8 +82,8 @@ const StoreModal = ({
               <Box mb={'8px'} fontSize={'14px'} fontWeight={500} color={'grayModern.900'}>
                 {t('capacity')}
               </Box>
-              <MyTooltip label={`${t('Storage Range')}: ${minVal}~20 Gi`}>
-                <NumberInput max={20} min={minVal} step={1} position={'relative'}>
+              <MyTooltip label={`${t('Storage Range')}: ${minVal}~500 Gi`}>
+                <NumberInput max={500} min={minVal} step={1} position={'relative'}>
                   <Box
                     position={'absolute'}
                     right={10}
@@ -111,12 +111,12 @@ const StoreModal = ({
                         message: `${t('Min Storage Value')} ${minVal} Gi`
                       },
                       max: {
-                        value: 20,
-                        message: `${t('Max Storage Value')} 20 Gi`
+                        value: 500,
+                        message: `${t('Max Storage Value')} 500 Gi`
                       },
                       valueAsNumber: true
                     })}
-                    max={20}
+                    max={500}
                   />
                   <NumberInputStepper>
                     <NumberIncrementStepper />
