@@ -21,7 +21,9 @@ import {
   useDisclosure,
   useTheme,
   Select,
-  Textarea
+  Textarea,
+  FormControl,
+  FormLabel
 } from '@chakra-ui/react';
 import { useQuery } from '@tanstack/react-query';
 import type { ThemeType } from '@sealos/ui';
@@ -31,7 +33,7 @@ import { debounce } from 'lodash';
 import { useTranslation } from 'next-i18next';
 import { useRouter } from 'next/router';
 import { getImages } from '@/api/app'
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState, useRef } from 'react';
 
 const AppList = ({
   apps = [],
@@ -55,9 +57,12 @@ const AppList = ({
   const [image, setImage] = useState<ImageHubItem>();
   const [purpose, setPurpose] = useState('');
   const [purposeMap, setPurposeMap] = useState<any>(null);
+  const purposeMapRef = useRef(null)
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(1000);
   const [searchTerm, setSearchTerm] = useState('');
+  const purposeValueRef = useRef(null)
+  const [curPurposeValue, setCurPurposeValue] = useState('')
 
   const { data } = useQuery(
     ['getImageHubs', page, pageSize, searchTerm],
@@ -69,6 +74,7 @@ const AppList = ({
   const [files, setFiles] = useState<File[]>([]);
   const { isOpen: isUploadOpen, onOpen: onUploadOpen, onClose: onUploadClose } = useDisclosure();
   const { isOpen: isConstructUploadOpen, onOpen: onConstructUploadOpen, onClose: onConstructUploadClose } = useDisclosure();
+  const { isOpen: isPurposeOpen, onOpen: onPurposeOpen, onClose: onPurposeClose } = useDisclosure();
 
   const [isUploading, setIsUploading] = useState(false);
   const [error, setError] = useState({ imageNs: '', imageName: '', imageTag: '', purpose: '' });
@@ -103,6 +109,7 @@ const AppList = ({
     const resp = await getImagesPurpose()
     if (resp && resp.data) {
       setPurposeMap(resp.data)
+      purposeMapRef.current = resp.data
     }
   }
 
@@ -146,16 +153,16 @@ const AppList = ({
     setImages(res.tags)
   }
   const purposeName = useCallback((item: any) => {
-    console.log('purposeMap', purposeMap, item)
-    if (purposeMap) {
+    console.log('purposeMap', purposeMapRef.current, item)
+    if (purposeMapRef.current) {
       const ns = item.image.split('/')[0]
       const name = item.image.split('/')[1]
       const key = `${name}-${item.tag}-${ns}`
-      const currentPurpose = purposeMap[key]
+      const currentPurpose = purposeMapRef.current[key]
       return currentPurpose || ''
     }
     return ''
-  }, [purposeMap])
+  }, [])
 
   const columns = useMemo<
     {
@@ -198,22 +205,52 @@ const AppList = ({
         title: '操作',
         key: 'operation',
         render: (item: ImageHubItem) => (
-          <Button
-            variant="ghost"
-            colorScheme="red"
-            size="sm"
-            onClick={() => {
-              setImage(item);
-              onOpen();
-            }}
-          >
-            删除
-          </Button>
+          <>
+            <Button
+              variant="ghost"
+              colorScheme="blue"
+              size="sm"
+              onClick={() => {
+                setCurPurposeValue(purposeName(item) || '')
+                setImage(item)
+                onPurposeOpen()
+              }}
+            >
+              编辑
+            </Button>
+            <Button
+              variant="ghost"
+              colorScheme="red"
+              size="sm"
+              onClick={() => {
+                setImage(item);
+                onOpen();
+              }}
+            >
+              删除
+            </Button>
+          </>
         )
       }
     ],
     []
   );
+
+  const savePurposeValue = async () => {
+    console.log('savePurposeValue>>>', curPurposeValue, image)
+    // setCurPurposeValue('')
+    const imageName = image!.image.split('/')[1]
+    const imageNs = image!.image.split('/')[0]
+    const imageTag = image!.tag
+    await setImagesPurpose({
+      key: `${imageName}-${imageTag}-${imageNs}`,
+      value: curPurposeValue
+    })
+    setCurPurposeValue('')
+    setImage(undefined)
+    onPurposeClose()
+    initPurposeMap()
+  }
 
   return (
     <Flex flexDirection={'column'} h={`calc(100% - 48px)`}>
@@ -350,6 +387,33 @@ const AppList = ({
           </Grid>
         ))}
       </Box>
+
+      <Modal isOpen={isPurposeOpen} onClose={() => {
+        setCurPurposeValue('')
+        setImage(undefined);
+        onPurposeClose()
+      }} closeOnOverlayClick={false}>
+        <ModalOverlay />
+        <ModalContent>
+          <ModalHeader>编辑</ModalHeader>
+          <ModalCloseButton />
+          <ModalBody>
+            <FormControl>
+              <Input value={curPurposeValue} placeholder='请输入用途' onChange={(e) => setCurPurposeValue(e.target.value)} />
+            </FormControl>
+          </ModalBody>
+          <ModalFooter>
+            <Button colorScheme='blue' mr={3} onClick={savePurposeValue}>
+              保存
+            </Button>
+            <Button onClick={() => {
+              setCurPurposeValue('')
+              setImage(undefined);
+              onPurposeClose()
+            }}>取消</Button>
+          </ModalFooter>
+        </ModalContent>
+      </Modal>
 
       <Modal
         isOpen={isOpen}

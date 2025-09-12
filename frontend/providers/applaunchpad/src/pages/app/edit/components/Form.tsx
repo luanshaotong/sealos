@@ -431,7 +431,7 @@ const Form = ({
       },
       {
         id: 'network',
-        label: 'Network Configuration',
+        label: 'Containers',
         icon: 'network'
         // isSetting: getValues('networks').length > 0
       },
@@ -910,7 +910,7 @@ const Form = ({
             </Box>
           </Box>
           {/* tabs */}
-          <Box id={'baseInfo'} {...boxStyles}>
+          <Box id={'network'} {...boxStyles}>
             <Tabs
               variant="enclosed"
               defaultIndex={0}
@@ -1351,7 +1351,7 @@ const Form = ({
           </Box>
 
           {/* settings */}
-          <Box id={'baseInfo'} {...boxStyles}>
+          <Box id={'settings'} {...boxStyles}>
             <Box {...headerStyles}>
               <MyIcon name={'formInfo'} mr={'12px'} w={'24px'} color={'grayModern.900'} />
               {t('Advanced Configuration')}
