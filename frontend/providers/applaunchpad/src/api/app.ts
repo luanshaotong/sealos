@@ -87,7 +87,7 @@ export const getImages = () => GET<{ repositories: string[] }>('/api/getImages')
 export const getImageTags = (data: { repository: string }) =>
   GET<{ name: string; tags: string[] }>('/api/getImages', data);
 
-export const getImageHubs = (data: { page: number; pageSize: number; search?: string }) =>
+export const getImageHubs = (data: { page: number; pageSize: number; search?: string; sortBy?: string; sortOrder?: string }) =>
   GET<{ items: ImageHubItem[]; total: number; page: number; pageSize: number; totalPages: number }>(
     '/api/imagehub/get',
     data
