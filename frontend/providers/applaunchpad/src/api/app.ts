@@ -137,11 +137,18 @@ export const putApp = (
   }
 ) => POST(`/api/updateApp?namespace=${namespace}`, data);
 
-export const getMyApps = (namespace: string) =>
-  //GET<V1Deployment & V1StatefulSet[]>('/api/getApps').then((res) => res.map(adaptAppListItem));
-  GET<V1Deployment & V1StatefulSet[]>(`/api/getApps?namespace=${namespace}`)
-    .then((res) => res.map(adaptAppListItem))
-    .then(sortAppListByTime);
+export const getMyApps = (namespace: string, page = 1, pageSize = 10) =>
+  GET<{
+    apps: any[];
+    total: number;
+    page: number;
+    pageSize: number;
+    totalPages: number;
+  }>(`/api/getApps?namespace=${namespace}&page=${page}&pageSize=${pageSize}`)
+    .then((res) => ({
+      ...res,
+      apps: res.apps.map(adaptAppListItem)
+    }));
 
 export const addStressTesting = (params: string) => GET(`/api/node/stressTesting?${params}`);
 

@@ -45,12 +45,19 @@ const AppList = ({
   namespaces = [],
   currentNamespace,
   apps = [],
+  pagination,
   refetchApps
 }: {
   apps: AppListItemType[];
   namespaces: string[];
   currentNamespace: string;
-  refetchApps: (namespace: string) => void;
+  pagination: {
+    page: number;
+    pageSize: number;
+    total: number;
+    totalPages: number;
+  };
+  refetchApps: (namespace: string, page?: number, pageSize?: number) => void;
 }) => {
   const { t } = useTranslation();
   const { setLoading } = useGlobalStore();
@@ -88,8 +95,9 @@ const AppList = ({
         console.error(error, '==');
       }
       setLoading(false);
+      refetchApps(currentNamespaceRef.current, pagination.page, pagination.pageSize);
     },
-    [setLoading, t, toast]
+    [refetchApps, setLoading, t, toast, pagination.page, pagination.pageSize]
   );
 
   const handlePauseApp = useCallback(
@@ -109,9 +117,9 @@ const AppList = ({
         console.error(error);
       }
       setLoading(false);
-      refetchApps(currentNamespaceRef.current);
+      refetchApps(currentNamespaceRef.current, pagination.page, pagination.pageSize);
     },
-    [refetchApps, setLoading, t, toast]
+    [refetchApps, setLoading, t, toast, pagination.page, pagination.pageSize]
   );
 
   const handleStartApp = useCallback(
@@ -131,18 +139,18 @@ const AppList = ({
         console.error(error);
       }
       setLoading(false);
-      refetchApps(currentNamespaceRef.current);
+      refetchApps(currentNamespaceRef.current, pagination.page, pagination.pageSize);
     },
-    [refetchApps, setLoading, t, toast]
+    [refetchApps, setLoading, t, toast, pagination.page, pagination.pageSize]
   );
 
   const setCurrentNamespace = useCallback(
     (namespace: string) => {
       currentNamespaceRef.current = namespace;
-      router.push(`/apps?namespace=${namespace}`);
-      refetchApps(currentNamespaceRef.current);
+      router.push(`/apps?namespace=${namespace}&page=1&pageSize=${pagination.pageSize}`);
+      refetchApps(currentNamespaceRef.current, 1, pagination.pageSize);
     },
-    [refetchApps, setLoading, t, toast]
+    [refetchApps, router, pagination.pageSize]
   );
 
   const columns = useMemo<
@@ -221,28 +229,28 @@ const AppList = ({
         dataIndex: 'priority',
         key: 'priority'
       },
-      // {
-      //   title: t('CPU'),
-      //   key: 'cpu',
-      //   render: (item: AppListItemType) => (
-      //     <Box h={'35px'} w={['120px', '130px', '140px']}>
-      //       <Box h={'35px'} w={['120px', '130px', '140px']} position={'absolute'}>
-      //         <PodLineChart type="blue" data={item.usedCpu} />
-      //       </Box>
-      //     </Box>
-      //   )
-      // },
-      // {
-      //   title: t('Memory'),
-      //   key: 'storage',
-      //   render: (item: AppListItemType) => (
-      //     <Box h={'35px'} w={['120px', '130px', '140px']}>
-      //       <Box h={'35px'} w={['120px', '130px', '140px']} position={'absolute'}>
-      //         <PodLineChart type="purple" data={item.usedMemory} />
-      //       </Box>
-      //     </Box>
-      //   )
-      // },
+      {
+        title: t('CPU'),
+        key: 'cpu',
+        render: (item: AppListItemType) => (
+          <Box h={'35px'} w={['120px', '130px', '140px']}>
+            <Box h={'35px'} w={['120px', '130px', '140px']} position={'absolute'}>
+              <PodLineChart type="blue" data={item.usedCpu} />
+            </Box>
+          </Box>
+        )
+      },
+      {
+        title: t('Memory'),
+        key: 'storage',
+        render: (item: AppListItemType) => (
+          <Box h={'35px'} w={['120px', '130px', '140px']}>
+            <Box h={'35px'} w={['120px', '130px', '140px']} position={'absolute'}>
+              <PodLineChart type="purple" data={item.usedMemory} />
+            </Box>
+          </Box>
+        )
+      },
       ...(userSourcePrice?.gpu
         ? [
             {
@@ -505,6 +513,52 @@ const AppList = ({
         </Button>
       </Flex>
       <MyTable itemClass="appItem" columns={columns} data={apps} />
+      
+      {/* 分页控件 */}
+      <Flex justify="space-between" align="center" mt={4} px={4}>
+        <Box color={'grayModern.600'} fontSize={'sm'}>
+          共 {pagination.total} 条记录，第 {pagination.page} 页，共 {pagination.totalPages} 页
+        </Box>
+        <Flex align="center" gap={4}>
+          <Flex align="center" gap={2}>
+            <Box color={'grayModern.600'} fontSize={'sm'}>每页显示：</Box>
+            <Select
+              w={'auto'}
+              size={'sm'}
+              value={pagination.pageSize}
+              onChange={(e) => {
+                const newPageSize = parseInt(e.target.value);
+                refetchApps(currentNamespaceRef.current, 1, newPageSize);
+              }}
+            >
+              <option value={10}>10</option>
+              <option value={20}>20</option>
+              <option value={50}>50</option>
+            </Select>
+          </Flex>
+          <Flex align="center" gap={2}>
+            <Button
+              size={'sm'}
+              variant={'outline'}
+              isDisabled={pagination.page === 1}
+              onClick={() => refetchApps(currentNamespaceRef.current, pagination.page - 1, pagination.pageSize)}
+            >
+              上一页
+            </Button>
+            <Box color={'grayModern.600'} fontSize={'sm'} px={2}>
+              {pagination.page} / {pagination.totalPages}
+            </Box>
+            <Button
+              size={'sm'}
+              variant={'outline'}
+              isDisabled={pagination.page === pagination.totalPages}
+              onClick={() => refetchApps(currentNamespaceRef.current, pagination.page + 1, pagination.pageSize)}
+            >
+              下一页
+            </Button>
+          </Flex>
+        </Flex>
+      </Flex>
       <PauseChild />
       <Modal
         isOpen={isOpen}

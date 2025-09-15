@@ -7,9 +7,9 @@ import { appDeployKey } from '@/constants/app';
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse<ApiResp>) {
   try {
-    const apps = await GetApps({ req });
+    const result = await GetApps({ req });
 
-    jsonRes(res, { data: apps });
+    jsonRes(res, { data: result });
   } catch (err: any) {
     jsonRes(res, {
       code: 500,
@@ -20,6 +20,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
 
 export async function GetApps({ req }: { req: NextApiRequest }) {
   const req_namespace = req.query.namespace as string;
+  const page = parseInt(req.query.page as string) || 1;
+  const pageSize = parseInt(req.query.pageSize as string) || 10;
 
   const { k8sApp, namespace } = await getK8s({
     kubeconfig: await authSession(req.headers)
@@ -44,11 +46,30 @@ export async function GetApps({ req }: { req: NextApiRequest }) {
     )
   ]);
 
-  const apps = response
+  const allApps = response
     .filter((item) => item.status === 'fulfilled')
     .map((item: any) => item?.value?.body?.items)
     .filter((item) => item)
     .flat();
 
-  return apps;
+  // 按创建时间降序排序（最新的在前）
+  allApps.sort((a, b) => {
+    const timeA = new Date(a.metadata?.creationTimestamp || 0).getTime();
+    const timeB = new Date(b.metadata?.creationTimestamp || 0).getTime();
+    return timeB - timeA;
+  });
+
+  // 计算分页
+  const total = allApps.length;
+  const startIndex = (page - 1) * pageSize;
+  const endIndex = startIndex + pageSize;
+  const apps = allApps.slice(startIndex, endIndex);
+
+  return {
+    apps,
+    total,
+    page,
+    pageSize,
+    totalPages: Math.ceil(total / pageSize)
+  };
 }
