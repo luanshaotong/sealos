@@ -45,14 +45,14 @@ const AppList = ({
   namespaces = [],
   currentNamespace,
   apps = [],
-  pagination,
+  pagination = { page: 1, pageSize: 10, total: 0, totalPages: 0 },
   currentAppName = '',
   refetchApps
 }: {
   apps: AppListItemType[];
   namespaces: string[];
   currentNamespace: string;
-  pagination: {
+  pagination?: {
     page: number;
     pageSize: number;
     total: number;
@@ -113,9 +113,9 @@ const AppList = ({
         console.error(error, '==');
       }
       setLoading(false);
-      refetchApps(currentNamespaceRef.current, pagination.page, pagination.pageSize, currentAppName);
+      refetchApps(currentNamespaceRef.current, pagination?.page || 1, pagination?.pageSize || 10, currentAppName);
     },
-    [refetchApps, setLoading, t, toast, pagination.page, pagination.pageSize, currentAppName]
+    [refetchApps, setLoading, t, toast, pagination?.page, pagination?.pageSize, currentAppName]
   );
 
   const handlePauseApp = useCallback(
@@ -135,9 +135,9 @@ const AppList = ({
         console.error(error);
       }
       setLoading(false);
-      refetchApps(currentNamespaceRef.current, pagination.page, pagination.pageSize, currentAppName);
+      refetchApps(currentNamespaceRef.current, pagination?.page || 1, pagination?.pageSize || 10, currentAppName);
     },
-    [refetchApps, setLoading, t, toast, pagination.page, pagination.pageSize, currentAppName]
+    [refetchApps, setLoading, t, toast, pagination?.page, pagination?.pageSize, currentAppName]
   );
 
   const handleStartApp = useCallback(
@@ -157,18 +157,18 @@ const AppList = ({
         console.error(error);
       }
       setLoading(false);
-      refetchApps(currentNamespaceRef.current, pagination.page, pagination.pageSize, currentAppName);
+      refetchApps(currentNamespaceRef.current, pagination?.page || 1, pagination?.pageSize || 10, currentAppName);
     },
-    [refetchApps, setLoading, t, toast, pagination.page, pagination.pageSize, currentAppName]
+    [refetchApps, setLoading, t, toast, pagination?.page, pagination?.pageSize, currentAppName]
   );
 
   const setCurrentNamespace = useCallback(
     (namespace: string) => {
       currentNamespaceRef.current = namespace;
-      router.push(`/apps?namespace=${namespace}&page=1&pageSize=${pagination.pageSize}${currentAppName ? `&appName=${encodeURIComponent(currentAppName)}` : ''}`);
-      refetchApps(currentNamespaceRef.current, 1, pagination.pageSize, currentAppName);
+      router.push(`/apps?namespace=${namespace}&page=1&pageSize=${pagination?.pageSize || 10}${currentAppName ? `&appName=${encodeURIComponent(currentAppName)}` : ''}`);
+      refetchApps(currentNamespaceRef.current, 1, pagination?.pageSize || 10, currentAppName);
     },
-    [refetchApps, router, pagination.pageSize, currentAppName]
+    [refetchApps, router, pagination?.pageSize, currentAppName]
   );
 
   const columns = useMemo<
@@ -481,7 +481,7 @@ const AppList = ({
             
             // 设置新的定时器进行防抖
             searchTimeoutRef.current = setTimeout(() => {
-              refetchApps(currentNamespaceRef.current, 1, pagination.pageSize, value);
+              refetchApps(currentNamespaceRef.current, 1, pagination?.pageSize || 10, value);
             }, 500);
           }}
           w={'200px'}
@@ -559,7 +559,7 @@ const AppList = ({
       {/* 分页控件 */}
       <Flex justify="space-between" align="center" mt={4} px={4}>
         <Box color={'grayModern.600'} fontSize={'sm'}>
-          共 {pagination.total} 条记录，第 {pagination.page} 页，共 {pagination.totalPages} 页
+          共 {pagination?.total || 0} 条记录，第 {pagination?.page || 1} 页，共 {pagination?.totalPages || 1} 页
         </Box>
         <Flex align="center" gap={4}>
           <Flex align="center" gap={2}>
@@ -567,7 +567,7 @@ const AppList = ({
             <Select
               w={'auto'}
               size={'sm'}
-              value={pagination.pageSize}
+              value={pagination?.pageSize || 10}
               onChange={(e) => {
                 const newPageSize = parseInt(e.target.value);
                 refetchApps(currentNamespaceRef.current, 1, newPageSize, currentAppName);
@@ -582,19 +582,19 @@ const AppList = ({
             <Button
               size={'sm'}
               variant={'outline'}
-              isDisabled={pagination.page === 1}
-              onClick={() => refetchApps(currentNamespaceRef.current, pagination.page - 1, pagination.pageSize, currentAppName)}
+              isDisabled={(pagination?.page || 1) === 1}
+              onClick={() => refetchApps(currentNamespaceRef.current, (pagination?.page || 1) - 1, pagination?.pageSize || 10, currentAppName)}
             >
               上一页
             </Button>
             <Box color={'grayModern.600'} fontSize={'sm'} px={2}>
-              {pagination.page} / {pagination.totalPages}
+              {pagination?.page || 1} / {pagination?.totalPages || 1}
             </Box>
             <Button
               size={'sm'}
               variant={'outline'}
-              isDisabled={pagination.page === pagination.totalPages}
-              onClick={() => refetchApps(currentNamespaceRef.current, pagination.page + 1, pagination.pageSize, currentAppName)}
+              isDisabled={(pagination?.page || 1) === (pagination?.totalPages || 1)}
+              onClick={() => refetchApps(currentNamespaceRef.current, (pagination?.page || 1) + 1, pagination?.pageSize || 10, currentAppName)}
             >
               下一页
             </Button>
@@ -649,7 +649,7 @@ const AppList = ({
                 await syncConfigMap();
                 onClose();
                 setNs('');
-                refetchApps('default', 1, pagination.pageSize, '');
+                refetchApps('default', 1, pagination?.pageSize || 10, '');
                 toast({
                   title: 'success',
                   status: 'success'
@@ -709,7 +709,7 @@ const AppList = ({
           namespace={currentNamespaceRef.current}
           appName={delAppName}
           onClose={() => setDelAppName('')}
-          onSuccess={() => refetchApps(currentNamespaceRef.current, pagination.page, pagination.pageSize, currentAppName)}
+          onSuccess={() => refetchApps(currentNamespaceRef.current, pagination?.page || 1, pagination?.pageSize || 10, currentAppName)}
         />
       )}
     </Box>
