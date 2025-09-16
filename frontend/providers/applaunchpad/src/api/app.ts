@@ -137,14 +137,14 @@ export const putApp = (
   }
 ) => POST(`/api/updateApp?namespace=${namespace}`, data);
 
-export const getMyApps = (namespace: string, page = 1, pageSize = 10) =>
+export const getMyApps = (namespace: string, page = 1, pageSize = 10, appName?: string) =>
   GET<{
     apps: any[];
     total: number;
     page: number;
     pageSize: number;
     totalPages: number;
-  }>(`/api/getApps?namespace=${namespace}&page=${page}&pageSize=${pageSize}`)
+  }>(`/api/getApps?namespace=${namespace}&page=${page}&pageSize=${pageSize}${appName ? `&appName=${encodeURIComponent(appName)}` : ''}`)
     .then((res) => ({
       ...res,
       apps: res.apps.map(adaptAppListItem)

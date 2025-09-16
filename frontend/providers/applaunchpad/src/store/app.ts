@@ -21,7 +21,7 @@ type State = {
     total: number;
     totalPages: number;
   };
-  setAppList: (namespace: string, page?: number, pageSize?: number, init?: boolean) => Promise<{
+  setAppList: (namespace: string, page?: number, pageSize?: number, init?: boolean, appName?: string) => Promise<{
     apps: AppListItemType[];
     total: number;
     page: number;
@@ -49,14 +49,14 @@ export const useAppStore = create<State>()(
         total: 0,
         totalPages: 0
       },
-      setAppList: async (namespace: string, page = 1, pageSize = 10, init = false) => {
+      setAppList: async (namespace: string, page = 1, pageSize = 10, init = false, appName?: string) => {
         console.log('get namespaces');
         const namespaces = await getNamespaces();
         console.log('namespaces222:', namespaces);
         set((state) => {
           state.namespaces = namespaces;
         });
-        const result = await getMyApps(namespace, page, pageSize);
+        const result = await getMyApps(namespace, page, pageSize, appName);
         set((state) => {
           state.appList = result.apps;
           state.pagination = {

@@ -9,10 +9,11 @@ import { RequestController, isElementInViewport } from '@/utils/tools';
 import AppList from './components/appList';
 import { getCurrentNamespace } from '@/utils/user';
 
-const Home = ({ namespace, page: initialPage, pageSize: initialPageSize }: { 
+const Home = ({ namespace, page: initialPage, pageSize: initialPageSize, appName: initialAppName }: { 
   namespace: string;
   page: number;
   pageSize: number;
+  appName?: string;
 }) => {
   const router = useRouter();
   const { appList, namespaces, pagination, setAppList, intervalLoadPods, loadAvgMonitorData } = useAppStore();
@@ -23,6 +24,7 @@ const Home = ({ namespace, page: initialPage, pageSize: initialPageSize }: {
   const namespacesRef = useRef<string[]>(namespaces);
   const [currentPage, setCurrentPage] = useState(initialPage);
   const [currentPageSize, setCurrentPageSize] = useState(initialPageSize);
+  const [currentAppName, setCurrentAppName] = useState(initialAppName || '');
 
   currentNamespace.current = getCurrentNamespace(currentNamespace.current);
 
@@ -37,8 +39,8 @@ const Home = ({ namespace, page: initialPage, pageSize: initialPageSize }: {
   );
 
   const { isLoading, refetch: refetchAppList } = useQuery(
-    ['appListQuery', currentNamespace.current, currentPage, currentPageSize],
-    () => setAppList(currentNamespace.current, currentPage, currentPageSize, false),
+    ['appListQuery', currentNamespace.current, currentPage, currentPageSize, currentAppName],
+    () => setAppList(currentNamespace.current, currentPage, currentPageSize, false, currentAppName),
     {
       onSettled(res) {
         if (!res) return;
@@ -135,11 +137,16 @@ const Home = ({ namespace, page: initialPage, pageSize: initialPageSize }: {
   }, [router]);
 
   // 更新URL参数的函数
-  const updateUrlParams = useCallback((newPage: number, newPageSize: number, namespace: string) => {
+  const updateUrlParams = useCallback((newPage: number, newPageSize: number, namespace: string, appName?: string) => {
     const query = { ...router.query };
     query.page = newPage.toString();
     query.pageSize = newPageSize.toString();
     query.namespace = namespace;
+    if (appName) {
+      query.appName = appName;
+    } else {
+      delete query.appName;
+    }
     router.push({
       pathname: router.pathname,
       query
@@ -153,15 +160,20 @@ const Home = ({ namespace, page: initialPage, pageSize: initialPageSize }: {
         currentNamespace={currentNamespace.current}
         apps={list.current}
         pagination={pagination}
-        refetchApps={(namespace: string, page?: number, pageSize?: number) => {
+        currentAppName={currentAppName}
+        refetchApps={(namespace: string, page?: number, pageSize?: number, appName?: string) => {
           currentNamespace.current = namespace;
           if (page !== undefined) {
             setCurrentPage(page);
-            updateUrlParams(page, pageSize || currentPageSize, namespace);
+            updateUrlParams(page, pageSize || currentPageSize, namespace, appName || currentAppName);
           }
           if (pageSize !== undefined) {
             setCurrentPageSize(pageSize);
-            updateUrlParams(page || currentPage, pageSize, namespace);
+            updateUrlParams(page || currentPage, pageSize, namespace, appName || currentAppName);
+          }
+          if (appName !== undefined) {
+            setCurrentAppName(appName);
+            updateUrlParams(page || currentPage, pageSize || currentPageSize, namespace, appName);
           }
           refetchAppList();
           refetchAvgMonitorData();
@@ -176,12 +188,14 @@ export async function getServerSideProps(content: any) {
   const namespace = content?.query?.namespace || 'default';
   const page = parseInt(content?.query?.page as string) || 1;
   const pageSize = parseInt(content?.query?.pageSize as string) || 10;
+  const appName = content?.query?.appName as string || '';
   
   return {
     props: {
       namespace,
       page,
       pageSize,
+      appName,
       ...(await serviceSideProps(content))
     }
   };

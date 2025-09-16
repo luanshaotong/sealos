@@ -22,6 +22,7 @@ export async function GetApps({ req }: { req: NextApiRequest }) {
   const req_namespace = req.query.namespace as string;
   const page = parseInt(req.query.page as string) || 1;
   const pageSize = parseInt(req.query.pageSize as string) || 10;
+  const appName = req.query.appName as string;
 
   const { k8sApp, namespace } = await getK8s({
     kubeconfig: await authSession(req.headers)
@@ -59,11 +60,19 @@ export async function GetApps({ req }: { req: NextApiRequest }) {
     return timeB - timeA;
   });
 
+  // 按应用名称过滤
+  let filteredApps = allApps;
+  if (appName && appName.trim()) {
+    filteredApps = allApps.filter((app) =>
+      app.metadata?.name?.toLowerCase().includes(appName.toLowerCase())
+    );
+  }
+
   // 计算分页
-  const total = allApps.length;
+  const total = filteredApps.length;
   const startIndex = (page - 1) * pageSize;
   const endIndex = startIndex + pageSize;
-  const apps = allApps.slice(startIndex, endIndex);
+  const apps = filteredApps.slice(startIndex, endIndex);
 
   return {
     apps,
