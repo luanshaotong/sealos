@@ -126,6 +126,7 @@ const Header = ({
     try {
       setLoading(true);
       await startAppByName(namespace, appName);
+      await handleStartApp2(false);
       toast({
         title: '应用已启动',
         status: 'success'
@@ -141,13 +142,13 @@ const Header = ({
     refetch();
   }, [appName, refetch, toast]);
 
-  const handleStartApp2 = useCallback(async () => {
+  const handleStartApp2 = useCallback(async (showMessage:Boolean = true) => {
     try {
       setLoading(true);
       const yaml = json2Service(appDetail, appName);
       await postDeployApp(namespace, [yaml], 'replace');
       await pauseAppByName(namespace, appName, 'recover');
-      toast({
+      showMessage && toast({
         title: '应用恢复',
         status: 'success'
       });

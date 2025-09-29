@@ -767,10 +767,19 @@ const Form = ({
                   <Label>{t('priority')}</Label>
                   <Input
                     width={'350px'}
-                    type={'text'}
+                    type={'number'}
                     placeholder={'优先级'}
                     {...register('priority', {
-                      required: '优先级不能为空'
+                      required: '优先级不能为空',
+                      valueAsNumber: true,
+                        min: {
+                          value: 1,
+                          message: t('优先级不能小于1')
+                        },
+                        max: {
+                          value: 100,
+                          message: t('优先级不能大于100')
+                        }
                     })}
                   />
                 </Flex>

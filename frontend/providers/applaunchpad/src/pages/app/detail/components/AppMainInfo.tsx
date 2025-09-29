@@ -167,17 +167,17 @@ const AppMainInfo = ({
                         {!!network.nodePort && (
                           <>
                             <MyTooltip
-                              label={network.nodePort ? t('Open Link') : ''}
+                              // label={network.nodePort ? t('Open Link') : ''}
                               placement={'bottom-start'}
                             >
                               <Box
                                 className={'textEllipsis'}
                                 {...(network.nodePort
                                   ? {
-                                      cursor: 'pointer',
-                                      _hover: { textDecoration: 'underline' },
-                                      onClick: () =>
-                                        window.open(`http://${network.nodePort}`, '_blank')
+                                      // cursor: 'pointer',
+                                      // _hover: { textDecoration: 'underline' },
+                                      // onClick: () =>
+                                      //   window.open(`http://${network.nodePort}`, '_blank')
                                     }
                                   : {})}
                               >
