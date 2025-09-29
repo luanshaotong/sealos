@@ -31,6 +31,8 @@ interface PaginationParams {
   page?: number;
   pageSize?: number;
   search?: string;
+  sortBy?: string;
+  sortOrder?: string;
 }
 
 export interface PaginatedResponse<T> {
@@ -124,7 +126,7 @@ export class ImageRegistryClient {
   async getAllImagesAndTags(
     pagination?: PaginationParams
   ): Promise<PaginatedResponse<ImageHubItem[]>> {
-    const { page = 1, pageSize = 10, search = '' } = pagination || {};
+    const { page = 1, pageSize = 10, search = '', sortBy = 'created', sortOrder = 'desc' } = pagination || {};
 
     // 获取所有仓库
     const allRepositories = await this.getRepositories();
@@ -160,9 +162,20 @@ export class ImageRegistryClient {
       })
     );
 
-    allTags.sort((a, b) => {
-      return a.image.localeCompare(b.image);
-    });
+    // 根据排序参数进行排序
+    if (sortBy === 'created') {
+      allTags.sort((a, b) => {
+        const dateA = new Date(a.created || '').getTime();
+        const dateB = new Date(b.created || '').getTime();
+        return sortOrder === 'desc' ? dateB - dateA : dateA - dateB;
+      });
+    } else {
+      // 默认按镜像名称排序
+      allTags.sort((a, b) => {
+        const comparison = a.image.localeCompare(b.image);
+        return sortOrder === 'desc' ? -comparison : comparison;
+      });
+    }
 
     // 在排序之后，分页之前添加搜索过滤
     const filteredTags = search
@@ -277,6 +290,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
     const page = parseInt(req.query.page as string) || 1;
     const pageSize = parseInt(req.query.pageSize as string) || 10;
     const search = (req.query.search as string) || '';
+    const sortBy = (req.query.sortBy as string) || 'created';
+    const sortOrder = (req.query.sortOrder as string) || 'desc';
 
     const client = new ImageRegistryClient({
       baseUrl: process.env.IMAGE_REPO_URL!,
@@ -284,7 +299,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
       password: process.env.IMAGE_REPO_PASSWORD!
     });
 
-    const response = await client.getAllImagesAndTags({ page, pageSize, search });
+    const response = await client.getAllImagesAndTags({ page, pageSize, search, sortBy, sortOrder });
 
     jsonRes(res, {
       data: {

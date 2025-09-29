@@ -195,7 +195,7 @@ const Header = ({
       )}
       <Box flex={1} />
 
-      {isStop ? (
+      {!isPause && ( isStop ? (
         <Button
           width={'96px'}
           variant={'outline'}
@@ -219,7 +219,7 @@ const Header = ({
         >
           暂停
         </Button>
-      )}
+      ))}
 
       {/* btns */}
       {isPause ? (

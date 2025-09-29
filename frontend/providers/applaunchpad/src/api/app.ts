@@ -87,7 +87,7 @@ export const getImages = () => GET<{ repositories: string[] }>('/api/getImages')
 export const getImageTags = (data: { repository: string }) =>
   GET<{ name: string; tags: string[] }>('/api/getImages', data);
 
-export const getImageHubs = (data: { page: number; pageSize: number; search?: string }) =>
+export const getImageHubs = (data: { page: number; pageSize: number; search?: string; sortBy?: string; sortOrder?: string }) =>
   GET<{ items: ImageHubItem[]; total: number; page: number; pageSize: number; totalPages: number }>(
     '/api/imagehub/get',
     data
@@ -137,11 +137,18 @@ export const putApp = (
   }
 ) => POST(`/api/updateApp?namespace=${namespace}`, data);
 
-export const getMyApps = (namespace: string) =>
-  //GET<V1Deployment & V1StatefulSet[]>('/api/getApps').then((res) => res.map(adaptAppListItem));
-  GET<V1Deployment & V1StatefulSet[]>(`/api/getApps?namespace=${namespace}`)
-    .then((res) => res.map(adaptAppListItem))
-    .then(sortAppListByTime);
+export const getMyApps = (namespace: string, page = 1, pageSize = 10, appName?: string) =>
+  GET<{
+    apps: any[];
+    total: number;
+    page: number;
+    pageSize: number;
+    totalPages: number;
+  }>(`/api/getApps?namespace=${namespace}&page=${page}&pageSize=${pageSize}${appName ? `&appName=${encodeURIComponent(appName)}` : ''}`)
+    .then((res) => ({
+      ...res,
+      apps: res.apps.map(adaptAppListItem)
+    }));
 
 export const addStressTesting = (params: string) => GET(`/api/node/stressTesting?${params}`);
 

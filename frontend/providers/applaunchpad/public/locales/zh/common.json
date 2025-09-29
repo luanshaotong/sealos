@@ -174,7 +174,7 @@
   "Under Stock": "库存不足",
   "Gpu under inventory Tip": "{{gputype}} 库存不足，请更换型号或减少数量",
   "No GPU": "不使用 GPU",
-  "The Cpu target is empty": "cpu目标值为空",
+  "The Cpu target is empty": "目标值错误，只能输入数字",
   "The cpu target value must be positive": "Cpu目标值需为正数",
   "The target cpu value must be less than 100": "Cpu目标值需在100内",
   "Number of instances: 1 to 20": "实例数范围：1~20",

@@ -39,12 +39,18 @@ const AppList = ({
   apps = [],
   namespaces,
   refetchApps,
-  onSearch
+  onSearch,
+  sortBy = 'created',
+  sortOrder = 'desc',
+  onSortChange
 }: {
   namespaces: string[];
   apps: ImageHubItem[];
   refetchApps: () => void;
   onSearch: (value: string) => void;
+  sortBy?: string;
+  sortOrder?: string;
+  onSortChange?: (sortBy: string, sortOrder: string) => void;
 }) => {
   const { t } = useTranslation();
   const { message: toast } = useMessage();
@@ -63,7 +69,7 @@ const AppList = ({
   const [searchTerm, setSearchTerm] = useState('');
   const purposeValueRef = useRef(null)
   const [curPurposeValue, setCurPurposeValue] = useState('')
-
+  
   const { data } = useQuery(
     ['getImageHubs', page, pageSize, searchTerm],
     () => getImageHubs({ page, pageSize, search: searchTerm }),
@@ -126,6 +132,8 @@ const AppList = ({
         return `add ${item.name}`
       }).join('\n')
       setConstructDockerfile(imageString + filesString)
+    } else {
+      setConstructDockerfile("")
     }
   }, [constructImage, uploadFirstItems, selectVersion])
 
@@ -284,6 +292,21 @@ const AppList = ({
           }}
         />
 
+        <Select
+          mr={'14px'}
+          w={'140px'}
+          value={`${sortBy}_${sortOrder}`}
+          onChange={(e) => {
+            const [newSortBy, newSortOrder] = e.target.value.split('_');
+            onSortChange?.(newSortBy, newSortOrder);
+          }}
+        >
+          <option value="created_desc">时间 ↓</option>
+          <option value="created_asc">时间 ↑</option>
+          <option value="image_asc">名称 ↑</option>
+          <option value="image_desc">名称 ↓</option>
+        </Select>
+
         <Button
           h={'40px'}
           mr={'14px'}
@@ -305,6 +328,16 @@ const AppList = ({
           minW={'140px'}
           onClick={() => {
             setConstructFiles([]);
+            setConstructImage("");
+            setConstructImageNs("");
+            setConstructImageTag("");
+            setConstructImageName("");
+            setConstructDockerfile("");
+            setConstructFiles([]);
+            setSelectVersion("");
+            setUploadFirstItems([]);
+
+            refetchApps();
             onConstructUploadOpen();
           }}
         >

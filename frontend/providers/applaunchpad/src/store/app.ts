@@ -15,7 +15,19 @@ import { immer } from 'zustand/middleware/immer';
 type State = {
   namespaces: string[];
   appList: AppListItemType[];
-  setAppList: (namespace: string, init?: boolean) => Promise<AppListItemType[]>;
+  pagination: {
+    page: number;
+    pageSize: number;
+    total: number;
+    totalPages: number;
+  };
+  setAppList: (namespace: string, page?: number, pageSize?: number, init?: boolean, appName?: string) => Promise<{
+    apps: AppListItemType[];
+    total: number;
+    page: number;
+    pageSize: number;
+    totalPages: number;
+  }>;
   appDetail?: AppDetailType;
   appDetailPods: PodDetailType[];
   setAppDetail: (namespace: string, appName: string) => Promise<AppDetailType>;
@@ -31,18 +43,30 @@ export const useAppStore = create<State>()(
       appDetail: MOCK_APP_DETAIL,
       appDetailPods: [] as PodDetailType[],
       namespaces: ['default'] as string[],
-      setAppList: async (namespace, init = false) => {
+      pagination: {
+        page: 1,
+        pageSize: 10,
+        total: 0,
+        totalPages: 0
+      },
+      setAppList: async (namespace: string, page = 1, pageSize = 10, init = false, appName?: string) => {
         console.log('get namespaces');
         const namespaces = await getNamespaces();
         console.log('namespaces222:', namespaces);
         set((state) => {
           state.namespaces = namespaces;
         });
-        const res = await getMyApps(namespace);
+        const result = await getMyApps(namespace, page, pageSize, appName);
         set((state) => {
-          state.appList = res;
+          state.appList = result.apps;
+          state.pagination = {
+            page: result.page,
+            pageSize: result.pageSize,
+            total: result.total,
+            totalPages: result.totalPages
+          };
         });
-        return res;
+        return result;
       },
       setAppDetail: async (namespace, appName: string) => {
         set((state) => {
