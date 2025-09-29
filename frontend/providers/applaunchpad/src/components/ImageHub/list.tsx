@@ -39,12 +39,18 @@ const AppList = ({
   apps = [],
   namespaces,
   refetchApps,
-  onSearch
+  onSearch,
+  sortBy = 'created',
+  sortOrder = 'desc',
+  onSortChange
 }: {
   namespaces: string[];
   apps: ImageHubItem[];
   refetchApps: () => void;
   onSearch: (value: string) => void;
+  sortBy?: string;
+  sortOrder?: string;
+  onSortChange?: (sortBy: string, sortOrder: string) => void;
 }) => {
   const { t } = useTranslation();
   const { message: toast } = useMessage();
@@ -283,6 +289,21 @@ const AppList = ({
             debouncedSearch(newValue);
           }}
         />
+
+        <Select
+          mr={'14px'}
+          w={'140px'}
+          value={`${sortBy}_${sortOrder}`}
+          onChange={(e) => {
+            const [newSortBy, newSortOrder] = e.target.value.split('_');
+            onSortChange?.(newSortBy, newSortOrder);
+          }}
+        >
+          <option value="created_desc">时间 ↓</option>
+          <option value="created_asc">时间 ↑</option>
+          <option value="image_asc">名称 ↑</option>
+          <option value="image_desc">名称 ↓</option>
+        </Select>
 
         <Button
           h={'40px'}

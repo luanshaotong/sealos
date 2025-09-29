@@ -15,10 +15,12 @@ const Home = ({ namespace }: { namespace: string }) => {
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
   const [searchTerm, setSearchTerm] = useState('');
+  const [sortBy, setSortBy] = useState('created');
+  const [sortOrder, setSortOrder] = useState('desc');
 
   const { isLoading, data, refetch } = useQuery(
-    ['getImageHubs', page, pageSize, searchTerm],
-    () => getImageHubs({ page, pageSize, search: searchTerm }),
+    ['getImageHubs', page, pageSize, searchTerm, sortBy, sortOrder],
+    () => getImageHubs({ page, pageSize, search: searchTerm, sortBy, sortOrder }),
     {
       retry: 3
     }
@@ -31,6 +33,12 @@ const Home = ({ namespace }: { namespace: string }) => {
         apps={data?.items || []}
         refetchApps={refetch}
         onSearch={setSearchTerm}
+        sortBy={sortBy}
+        sortOrder={sortOrder}
+        onSortChange={(newSortBy: string, newSortOrder: string) => {
+          setSortBy(newSortBy);
+          setSortOrder(newSortOrder);
+        }}
       />
 
       <SwitchPage

@@ -34,7 +34,7 @@ import {
 import { useTranslation } from 'next-i18next';
 import dynamic from 'next/dynamic';
 import { useRouter } from 'next/router';
-import React, { useCallback, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useMemo, useRef, useState, useEffect } from 'react';
 import type { ThemeType } from '@sealos/ui';
 import { createNamespace } from '@/api/platform';
 import FileSelect from '@/components/FileSelect';
@@ -45,12 +45,21 @@ const AppList = ({
   namespaces = [],
   currentNamespace,
   apps = [],
+  pagination = { page: 1, pageSize: 10, total: 0, totalPages: 0 },
+  currentAppName = '',
   refetchApps
 }: {
   apps: AppListItemType[];
   namespaces: string[];
   currentNamespace: string;
-  refetchApps: (namespace: string) => void;
+  pagination?: {
+    page: number;
+    pageSize: number;
+    total: number;
+    totalPages: number;
+  };
+  currentAppName: string;
+  refetchApps: (namespace: string, page?: number, pageSize?: number, appName?: string) => void;
 }) => {
   const { t } = useTranslation();
   const { setLoading } = useGlobalStore();
@@ -61,6 +70,8 @@ const AppList = ({
   const currentNamespaceRef = useRef<string>(currentNamespace);
   const { isOpen, onOpen, onClose } = useDisclosure();
   const [ns, setNs] = useState('');
+  const [searchAppName, setSearchAppName] = useState(currentAppName);
+  const searchTimeoutRef = useRef<NodeJS.Timeout>();
   const [isUploading, setIsUploading] = useState(false);
 
   const [delAppName, setDelAppName] = useState('');
@@ -70,6 +81,20 @@ const AppList = ({
 
   const [files, setFiles] = useState<File[]>([]);
   const { isOpen: isUploadOpen, onOpen: onUploadOpen, onClose: onUploadClose } = useDisclosure();
+
+  // 同步searchAppName与currentAppName
+  useEffect(() => {
+    setSearchAppName(currentAppName);
+  }, [currentAppName]);
+
+  // 清理定时器
+  useEffect(() => {
+    return () => {
+      if (searchTimeoutRef.current) {
+        clearTimeout(searchTimeoutRef.current);
+      }
+    };
+  }, []);
 
   const handleRestartApp = useCallback(
     async (appName: string) => {
@@ -88,8 +113,9 @@ const AppList = ({
         console.error(error, '==');
       }
       setLoading(false);
+      refetchApps(currentNamespaceRef.current, pagination?.page || 1, pagination?.pageSize || 10, currentAppName);
     },
-    [setLoading, t, toast]
+    [refetchApps, setLoading, t, toast, pagination?.page, pagination?.pageSize, currentAppName]
   );
 
   const handlePauseApp = useCallback(
@@ -109,9 +135,9 @@ const AppList = ({
         console.error(error);
       }
       setLoading(false);
-      refetchApps(currentNamespaceRef.current);
+      refetchApps(currentNamespaceRef.current, pagination?.page || 1, pagination?.pageSize || 10, currentAppName);
     },
-    [refetchApps, setLoading, t, toast]
+    [refetchApps, setLoading, t, toast, pagination?.page, pagination?.pageSize, currentAppName]
   );
 
   const handleStartApp = useCallback(
@@ -131,18 +157,18 @@ const AppList = ({
         console.error(error);
       }
       setLoading(false);
-      refetchApps(currentNamespaceRef.current);
+      refetchApps(currentNamespaceRef.current, pagination?.page || 1, pagination?.pageSize || 10, currentAppName);
     },
-    [refetchApps, setLoading, t, toast]
+    [refetchApps, setLoading, t, toast, pagination?.page, pagination?.pageSize, currentAppName]
   );
 
   const setCurrentNamespace = useCallback(
     (namespace: string) => {
       currentNamespaceRef.current = namespace;
-      router.push(`/apps?namespace=${namespace}`);
-      refetchApps(currentNamespaceRef.current);
+      router.push(`/apps?namespace=${namespace}&page=1&pageSize=${pagination?.pageSize || 10}${currentAppName ? `&appName=${encodeURIComponent(currentAppName)}` : ''}`);
+      refetchApps(currentNamespaceRef.current, 1, pagination?.pageSize || 10, currentAppName);
     },
-    [refetchApps, setLoading, t, toast]
+    [refetchApps, router, pagination?.pageSize, currentAppName]
   );
 
   const columns = useMemo<
@@ -439,6 +465,30 @@ const AppList = ({
           ( {apps.length} )
         </Box>
         <Box flex={1}></Box>
+        
+        {/* App Name Search */}
+        <Input
+          placeholder={t('按名字搜索') as string}
+          value={searchAppName}
+          onChange={(e) => {
+            const value = e.target.value;
+            setSearchAppName(value);
+            
+            // 清除之前的定时器
+            if (searchTimeoutRef.current) {
+              clearTimeout(searchTimeoutRef.current);
+            }
+            
+            // 设置新的定时器进行防抖
+            searchTimeoutRef.current = setTimeout(() => {
+              refetchApps(currentNamespaceRef.current, 1, pagination?.pageSize || 10, value);
+            }, 500);
+          }}
+          w={'200px'}
+          mr={4}
+          size={'sm'}
+        />
+        
         <Select
           w={'auto'}
           mr={4}
@@ -505,6 +555,52 @@ const AppList = ({
         </Button>
       </Flex>
       <MyTable itemClass="appItem" columns={columns} data={apps} />
+      
+      {/* 分页控件 */}
+      <Flex justify="space-between" align="center" mt={4} px={4}>
+        <Box color={'grayModern.600'} fontSize={'sm'}>
+          共 {pagination?.total || 0} 条记录，第 {pagination?.page || 1} 页，共 {pagination?.totalPages || 1} 页
+        </Box>
+        <Flex align="center" gap={4}>
+          <Flex align="center" gap={2}>
+            <Box color={'grayModern.600'} fontSize={'sm'}>每页显示：</Box>
+            <Select
+              w={'auto'}
+              size={'sm'}
+              value={pagination?.pageSize || 10}
+              onChange={(e) => {
+                const newPageSize = parseInt(e.target.value);
+                refetchApps(currentNamespaceRef.current, 1, newPageSize, currentAppName);
+              }}
+            >
+              <option value={10}>10</option>
+              <option value={20}>20</option>
+              <option value={50}>50</option>
+            </Select>
+          </Flex>
+          <Flex align="center" gap={2}>
+            <Button
+              size={'sm'}
+              variant={'outline'}
+              isDisabled={(pagination?.page || 1) === 1}
+              onClick={() => refetchApps(currentNamespaceRef.current, (pagination?.page || 1) - 1, pagination?.pageSize || 10, currentAppName)}
+            >
+              上一页
+            </Button>
+            <Box color={'grayModern.600'} fontSize={'sm'} px={2}>
+              {pagination?.page || 1} / {pagination?.totalPages || 1}
+            </Box>
+            <Button
+              size={'sm'}
+              variant={'outline'}
+              isDisabled={(pagination?.page || 1) === (pagination?.totalPages || 1)}
+              onClick={() => refetchApps(currentNamespaceRef.current, (pagination?.page || 1) + 1, pagination?.pageSize || 10, currentAppName)}
+            >
+              下一页
+            </Button>
+          </Flex>
+        </Flex>
+      </Flex>
       <PauseChild />
       <Modal
         isOpen={isOpen}
@@ -553,7 +649,7 @@ const AppList = ({
                 await syncConfigMap();
                 onClose();
                 setNs('');
-                refetchApps('default');
+                refetchApps('default', 1, pagination?.pageSize || 10, '');
                 toast({
                   title: 'success',
                   status: 'success'
@@ -613,7 +709,7 @@ const AppList = ({
           namespace={currentNamespaceRef.current}
           appName={delAppName}
           onClose={() => setDelAppName('')}
-          onSuccess={() => refetchApps(currentNamespaceRef.current)}
+          onSuccess={() => refetchApps(currentNamespaceRef.current, pagination?.page || 1, pagination?.pageSize || 10, currentAppName)}
         />
       )}
     </Box>
