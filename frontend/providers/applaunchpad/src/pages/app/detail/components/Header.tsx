@@ -126,7 +126,7 @@ const Header = ({
     try {
       setLoading(true);
       await startAppByName(namespace, appName);
-      await handleStartApp2(false);
+      await handleStartApp2();
       toast({
         title: '应用已启动',
         status: 'success'
@@ -203,7 +203,7 @@ const Header = ({
           h={'40px'}
           leftIcon={<MyIcon name="pause" w={'20px'} fill={'#485264'} />}
           isLoading={loading}
-          onClick={handleStartApp2}
+          onClick={() => handleStartApp2()}
         >
           恢复
         </Button>
