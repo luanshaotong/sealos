@@ -299,9 +299,9 @@ const AppList = ({
                   onChange={(e) => setUsername(e.target.value)}
                   width={300}
                   style={{borderColor:errors.username ? 'red' : '#02A7F0'}}
-                  {...register(`username`, {
-                    required: '请输入'
-                  })}
+                  // {...register(`username`, {
+                  //   required: '请输入'
+                  // })}
                   autoFocus={true}
                   maxLength={20}
                 />
@@ -389,9 +389,9 @@ const AppList = ({
                     setRoleId(e.target.value)
                   }}
                   style={{borderColor:errors.username ? 'red' : '#02A7F0'}}
-                  {...register(`roleId`, {
-                    required: '请输入'
-                  })}
+                  // {...register(`roleId`, {
+                  //   required: '请输入'
+                  // })}
                   width={300}
                 >
                   {roles.map((role) => (
