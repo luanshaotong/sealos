@@ -90,7 +90,7 @@ const FileSelect = ({ fileExtension, setFiles, multiple = false, files, ...props
         <input
           ref={SelectFileDom}
           type="file"
-          accept={fileExtension}
+          accept=".zip,application/zip,application/x-zip,application/x-zip-compressed"
           multiple={multiple}
           onChange={(e) => {
             if (!e.target.files || e.target.files?.length === 0) return;
@@ -100,6 +100,35 @@ const FileSelect = ({ fileExtension, setFiles, multiple = false, files, ...props
                 title: t('Select a maximum of 10 files')
               });
             }
+
+            // 检查文件类型限制 (只允许zip文件)
+            const allowedTypes = ['application/zip', 'application/x-zip', 'application/x-zip-compressed'];
+            const invalidTypeFiles = Array.from(e.target.files).filter(file => {
+              const isZipExtension = file.name.toLowerCase().endsWith('.zip');
+              const isZipMimeType = allowedTypes.includes(file.type);
+              return !isZipExtension && !isZipMimeType;
+            });
+
+            if (invalidTypeFiles.length > 0) {
+              return toast({
+                status: 'warning',
+                title: t('Invalid file type'),
+                description: `只能上传ZIP文件，以下文件类型不符合要求: ${invalidTypeFiles.map(f => f.name).join(', ')}`
+              });
+            }
+
+            // 检查文件大小限制 (2GB = 2 * 1024 * 1024 * 1024 bytes)
+            const maxFileSize = 2 * 1024 * 1024 * 1024; // 2GB
+            const oversizedFiles = Array.from(e.target.files).filter(file => file.size > maxFileSize);
+
+            if (oversizedFiles.length > 0) {
+              return toast({
+                status: 'warning',
+                title: t('File size exceeds limit'),
+                description: `文件大小不能超过2GB，以下文件超出限制: ${oversizedFiles.map(f => f.name).join(', ')}`
+              });
+            }
+
             onSelectFile(Array.from(e.target.files));
           }}
         />

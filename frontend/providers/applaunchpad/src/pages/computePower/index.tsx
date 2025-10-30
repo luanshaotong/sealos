@@ -57,6 +57,7 @@ import dayjs from 'dayjs';
 import { debounce } from 'lodash';
 import { useTranslation } from 'next-i18next';
 import { useRouter } from 'next/router';
+import { useForm } from 'react-hook-form';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 
 const AppList = ({
@@ -147,6 +148,16 @@ const AppList = ({
     initComputePowerList();
     initNameSpace();
   }, [])
+  const {
+    register,
+    control,
+    setValue,
+    getValues,
+    handleSubmit,
+    formState: { errors }
+  } = useForm<any>({
+    defaultValues:nodeModel
+  });
 
   const { isOpen, onOpen, onClose } = useDisclosure();
 
@@ -477,14 +488,18 @@ const AppList = ({
                 />
               </Flex>
             </FormControl>
-            <FormControl mb={7} w={'100%'}>
+            <FormControl mb={7} isInvalid={errors.core_api ? true : false} w={'100%'}>
               <Flex alignItems={'center'} mb={5}>
                 <Label>{"核心API"}</Label>
                 <Input
                   width={'60%'}
                   autoFocus={true}
+                  style={{borderColor:errors.core_api ? 'red' : '#02A7F0'}}
                   maxLength={60}
                   value={nodeModel.core_api}
+                  {...register(`core_api`, {
+                    required: '请输入核心api'
+                  })}
                   onChange={e => {
                     setNodeModel({
                       ...nodeModel,
@@ -500,8 +515,18 @@ const AppList = ({
                 <Input
                   width={'60%'}
                   autoFocus={true}
-                  maxLength={60}
+                  type="number"
+                  onInput={(e:any) => {
+                    if (e.target.value.length > 5) {
+                      e.target.value = e.target.value.slice(0, 5);
+                    }
+                  }}
+                  maxLength={5}
                   value={nodeModel.port}
+                  style={{borderColor:errors.port ? 'red' : '#02A7F0'}}
+                  {...register(`port`, {
+                    required: '请输入'
+                  })}
                   onChange={e => {
                     setNodeModel({
                       ...nodeModel,
@@ -517,8 +542,19 @@ const AppList = ({
                 <Input
                   width={'60%'}
                   autoFocus={true}
-                  maxLength={60}
+                  maxLength={3}
+                  type="number"
+                  onInput={(e:any) => {
+                    if (e.target.value.length > 3) {
+                      e.target.value = e.target.value.slice(0,3);
+                    }
+                  }}
+                  style={{borderColor:errors.qps ? 'red' : '#02A7F0'}}
+                  {...register(`qps`, {
+                    required: '请输入'
+                  })}
                   value={nodeModel.qps}
+                   
                   onChange={e => {
                     setNodeModel({
                       ...nodeModel,
@@ -535,7 +571,17 @@ const AppList = ({
                 <Input
                   width={'60%'}
                   autoFocus={true}
-                  maxLength={60}
+                  maxLength={4}
+                  type="number"
+                  onInput={(e:any) => {
+                    if (e.target.value.length > 4) {
+                      e.target.value = e.target.value.slice(0,4);
+                    }
+                  }}
+                  style={{borderColor:errors.max_latency ? 'red' : '#02A7F0'}}
+                  {...register(`max_latency`, {
+                    required: '请输入'
+                  })}
                   value={nodeModel.max_latency}
                   onChange={e => {
                     setNodeModel({
@@ -552,7 +598,7 @@ const AppList = ({
                 <Textarea
                   width={'60%'}
                   autoFocus={true}
-                  maxLength={60}
+                  maxLength={2000}
                   value={nodeModel.test_data}
                   onChange={e => {
                     setNodeModel({
@@ -565,7 +611,7 @@ const AppList = ({
             </FormControl>
           </ModalBody>
           <ModalFooter>
-            <Button colorScheme="blue" mr={3} onClick={createNodeModelConfirm} isLoading={createLoading}>
+            <Button colorScheme="blue" mr={3} onClick={handleSubmit(createNodeModelConfirm)} isLoading={createLoading}>
               确认
             </Button>
           </ModalFooter>

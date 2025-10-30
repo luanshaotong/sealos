@@ -432,7 +432,7 @@ const AppList = ({
           <ModalCloseButton />
           <ModalBody>
             <FormControl>
-              <Input value={curPurposeValue} placeholder='请输入用途' onChange={(e) => setCurPurposeValue(e.target.value)} />
+              <Input value={curPurposeValue} maxLength={50} placeholder='请输入用途' onChange={(e) => setCurPurposeValue(e.target.value)} />
             </FormControl>
           </ModalBody>
           <ModalFooter>
@@ -512,6 +512,7 @@ const AppList = ({
                 errorBorderColor="red.300"
                 isInvalid={error.imageName !== ''}
                 value={imageName}
+                maxLength={20}
                 onChange={(e) => {
                   setImageName(e.target.value);
                   setError((prev) => ({ ...prev, imageName: '' }));
@@ -526,6 +527,7 @@ const AppList = ({
                 errorBorderColor="red.300"
                 isInvalid={error.imageTag !== ''}
                 value={imageTag}
+                maxLength={10}
                 onChange={(e) => {
                   setImageTag(e.target.value);
                   setError((prev) => ({ ...prev, imageTag: '' }));
@@ -541,6 +543,7 @@ const AppList = ({
                 errorBorderColor="red.300"
                 isInvalid={error.imageNs !== ''}
                 value={imageNs}
+                maxLength={20}
                 onChange={(e) => {
                   setImageNs(e.target.value);
                   setError((prev) => ({ ...prev, imageNs: '' }));
@@ -556,6 +559,7 @@ const AppList = ({
                 errorBorderColor="red.300"
                 isInvalid={error.purpose !== ''}
                 value={purpose}
+                maxLength={50}
                 onChange={(e) => {
                   setPurpose(e.target.value);
                   setError((prev) => ({ ...prev, purpose: '' }));
@@ -693,6 +697,7 @@ const AppList = ({
                 errorBorderColor="red.300"
                 isInvalid={constructError.constructImageName !== ''}
                 value={constructImageName}
+                maxLength={20}
                 onChange={(e) => {
                   setConstructImageName(e.target.value);
                   setError((prev) => ({ ...prev, constructImageName: '' }));
@@ -708,6 +713,7 @@ const AppList = ({
                 errorBorderColor="red.300"
                 isInvalid={constructError.constructImageTag !== ''}
                 value={constructImageTag}
+                maxLength={10}
                 onChange={(e) => {
                   setConstructImageTag(e.target.value);
                   setError((prev) => ({ ...prev, constructImageTag: '' }));
@@ -742,6 +748,7 @@ const AppList = ({
                 disabled={constructFiles.length === 0}
                 borderColor={'#02A7F0'}
                 _hover={{ borderColor: '#02A7F0' }}
+                maxLength={4000}
                 onChange={(e) => {
                   setConstructDockerfile(e.target.value);
                   setError((prev) => ({ ...prev, constructDockerfile: '' }));
@@ -783,7 +790,7 @@ const AppList = ({
                     path: uploadExPath || '',
                     namespace: constructImageNs,
                     imageName: constructImageName,
-                    version: 'v1.0',
+                    version: constructImageTag,
                     dockerfile: constructDockerfile
                   })
                   refetchApps();

@@ -50,6 +50,7 @@ import { useTranslation } from 'next-i18next';
 import { useRouter } from 'next/router';
 import { syncConfigMap } from '@/api/configMap'
 import { createNamespace } from '@/api/platform';
+import { useForm } from 'react-hook-form';
 
 const AppList = ({
   apps = [],
@@ -70,7 +71,16 @@ const AppList = ({
   const [isEditOpen, setIsEditOpen] = useState(false)
   const [roleId, setRoleId] = useState<any>(null)
   const toast = useToast();
-
+  const {
+    register,
+    control,
+    setValue,
+    getValues,
+    handleSubmit,
+    formState: { errors }
+  } = useForm<any>({
+    defaultValues: currentData
+  })
   const columns = [
     { title: '用户名', field: 'username' },
     { title: '命名空间', field: 'namespace' },
@@ -203,7 +213,7 @@ const AppList = ({
         const resp = await updateResourceQuotas(currentData.namespace, {
           namespace: currentData.namespace,
           username: currentData.username,
-          roleId:roleId,
+          roleId: roleId,
           limits: {
             services: currentData.services,
             requestsStorage: `${currentData.requestsStorage}Gi`,
@@ -288,8 +298,12 @@ const AppList = ({
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
                   width={300}
+                  style={{borderColor:errors.username ? 'red' : '#02A7F0'}}
+                  {...register(`username`, {
+                    required: '请输入'
+                  })}
                   autoFocus={true}
-                  maxLength={60}
+                  maxLength={20}
                 />
               </Flex>
             </FormControl>
@@ -297,10 +311,13 @@ const AppList = ({
               <Flex alignItems={'center'} mb={5}>
                 <Label>角色</Label>
                 <Select
-                  style={{borderColor: '#02A7F0'}}
+                  style={{ borderColor:errors.roleId ? 'red' : '#02A7F0' }}
                   width={300}
                   mr={4}
                   value={roleId}
+                  {...register(`roleId`, {
+                    required: '请输入'
+                  })}
                   onChange={(e) => {
                     setRoleId(e.target.value)
                   }}
@@ -315,7 +332,7 @@ const AppList = ({
             </FormControl>
           </ModalBody>
           <ModalFooter>
-            <Button colorScheme="blue" mr={3} onClick={onConfirm}>
+            <Button colorScheme="blue" mr={3} onClick={handleSubmit(onConfirm)}>
               确认
             </Button>
           </ModalFooter>
@@ -350,6 +367,10 @@ const AppList = ({
                 <Input
                   type='text'
                   value={currentData?.username}
+                  style={{borderColor:errors.username ? 'red' : '#02A7F0'}}
+                  {...register(`username`, {
+                    required: '请输入'
+                  })}
                   onChange={(e) => {
                     setCurrentData({
                       ...currentData,
@@ -357,7 +378,7 @@ const AppList = ({
                     })
                   }}
                   autoFocus={true}
-                  maxLength={60}
+                  maxLength={20}
                 />
               </Flex>
               <Flex alignItems={'center'} mb={5}>
@@ -367,7 +388,10 @@ const AppList = ({
                   onChange={(e) => {
                     setRoleId(e.target.value)
                   }}
-                  style={{borderColor: '#02A7F0'}}
+                  style={{borderColor:errors.username ? 'red' : '#02A7F0'}}
+                  {...register(`roleId`, {
+                    required: '请输入'
+                  })}
                   width={300}
                 >
                   {roles.map((role) => (
@@ -391,6 +415,15 @@ const AppList = ({
                 <Input
                   type='number'
                   value={currentData?.services}
+                  style={{borderColor:errors.services ? 'red' : '#02A7F0'}}
+                  {...register(`services`, {
+                    required: '请输入'
+                  })}
+                  onInput={(e:any) => {
+                    if (e.target.value.length > 7) {
+                      e.target.value = e.target.value.slice(0, 7);
+                    }
+                  }}
                   onChange={(e) => {
                     setCurrentData({
                       ...currentData,
@@ -398,7 +431,7 @@ const AppList = ({
                     })
                   }}
                   autoFocus={true}
-                  maxLength={60}
+                  maxLength={7}
                 />
               </Flex>
               <Flex alignItems={'center'} mb={5}>
@@ -407,6 +440,15 @@ const AppList = ({
                   <Input
                     type='number'
                     value={currentData?.requestsStorage}
+                    onInput={(e:any) => {
+                      if (e.target.value.length > 7) {
+                        e.target.value = e.target.value.slice(0, 7);
+                      }
+                    }}
+                    style={{borderColor:errors.requestsStorage ? 'red' : '#02A7F0'}}
+                    {...register(`requestsStorage`, {
+                      required: '请输入'
+                    })}
                     onChange={(e) => {
                       setCurrentData({
                         ...currentData,
@@ -414,7 +456,7 @@ const AppList = ({
                       })
                     }}
                     autoFocus={true}
-                    maxLength={60}
+                    maxLength={7}
                   />
                   <InputRightAddon style={{ height: 32, borderColor: '#02A7F0' }}>Gi</InputRightAddon>
                 </InputGroup>
@@ -424,6 +466,15 @@ const AppList = ({
                 <Input
                   type='number'
                   value={currentData?.persistentVolumeClaims}
+                  onInput={(e:any) => {
+                    if (e.target.value.length > 7) {
+                      e.target.value = e.target.value.slice(0, 7);
+                    }
+                  }}
+                  style={{borderColor:errors.persistentVolumeClaims ? 'red' : '#02A7F0'}}
+                  {...register(`persistentVolumeClaims`, {
+                    required: '请输入'
+                  })}
                   onChange={(e) => {
                     setCurrentData({
                       ...currentData,
@@ -439,6 +490,15 @@ const AppList = ({
                 <Input
                   type='number'
                   value={currentData?.limitsCpu}
+                  onInput={(e:any) => {
+                    if (e.target.value.length > 7) {
+                      e.target.value = e.target.value.slice(0, 7);
+                    }
+                  }}
+                  style={{borderColor:errors.limitsCpu ? 'red' : '#02A7F0'}}
+                  {...register(`limitsCpu`, {
+                    required: '请输入'
+                  })}
                   onChange={(e) => {
                     setCurrentData({
                       ...currentData,
@@ -455,6 +515,15 @@ const AppList = ({
                   <Input
                     type='number'
                     value={currentData?.limitsMemory}
+                    onInput={(e:any) => {
+                    if (e.target.value.length > 7) {
+                      e.target.value = e.target.value.slice(0, 7);
+                    }
+                  }}
+                  style={{borderColor:errors.limitsMemory ? 'red' : '#02A7F0'}}
+                  {...register(`limitsMemory`, {
+                    required: '请输入'
+                  })}
                     onChange={(e) => {
                       setCurrentData({
                         ...currentData,
@@ -470,7 +539,7 @@ const AppList = ({
             </FormControl>
           </ModalBody>
           <ModalFooter>
-            <Button colorScheme="blue" mr={3} onClick={onEditConfirm}>
+            <Button colorScheme="blue" mr={3} onClick={handleSubmit(onEditConfirm)}>
               确认
             </Button>
           </ModalFooter>

@@ -201,6 +201,12 @@ const Networks = ({
                   h={'32px'}
                   type={'number'}
                   w={'110px'}
+                  onInput={(e:any) => {
+                    if (e.target.value.length > 5) {
+                      e.target.value = e.target.value.slice(0, 5);
+                    }
+                  }}
+                  maxLength={5}
                   {...register(`containers.${containerIndex}.networks.${i}.port`, {
                     required:
                       t('app.The container exposed port cannot be empty') ||
@@ -290,6 +296,11 @@ const Networks = ({
                     <Input
                       h={'32px'}
                       type={'number'}
+                      onInput={(e:any) => {
+                        if (e.target.value.length > 5) {
+                          e.target.value = e.target.value.slice(0, 5);
+                        }
+                      }}
                       w={'80px'}
                       {...register(`containers.${containerIndex}.networks.${i}.nodePort`, {
                         required:
@@ -690,7 +701,7 @@ const Form = ({
                     disabled={isEdit}
                     title={isEdit ? t('Not allowed to change app name') || '' : ''}
                     autoFocus={true}
-                    maxLength={60}
+                    maxLength={40}
                     placeholder={
                       t(
                         'Starts with a letter and can contain only lowercase letters, digits, and hyphens (-)'
@@ -753,6 +764,7 @@ const Form = ({
                   <Input
                     width={'350px'}
                     type={'text'}
+                    maxLength={40}
                     placeholder={'只支持get请求的api,例如：/'}
                     {...register('preInspection', {
                       // required: '预检api不能为空'
@@ -767,7 +779,11 @@ const Form = ({
                   <Label>{t('priority')}</Label>
                   <Input
                     width={'350px'}
-                    type={'number'}
+                    maxLength={3}
+                    onInput={(e:any) => {
+                      // 只允许输入数字，过滤掉非数字字符
+                      e.target.value = e.target.value.replace(/[^0-9]/g, '');
+                    }}
                     placeholder={'优先级'}
                     {...register('priority', {
                       required: '优先级不能为空',
@@ -999,10 +1015,10 @@ const Form = ({
                             <Label>{t('Name')}</Label>
                             <Input
                               width={'350px'}
-                              maxLength={60}
+                              maxLength={10}
                               {...register(`containers.${containerIndex}.name`, {
                                 required: t('Not allowed to change app name') || '',
-                                maxLength: 60,
+                                maxLength: 10,
                                 pattern: {
                                   value: /^[a-z][a-z0-9]+([-.][a-z0-9]+)*$/g,
                                   message: t(
