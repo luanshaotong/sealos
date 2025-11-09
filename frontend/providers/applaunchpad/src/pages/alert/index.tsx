@@ -209,10 +209,15 @@ const AlertManagement = () => {
           <ModalBody>
             <FormControl mb={7} w={'100%'}>
               <Flex alignItems={'center'}>
-                <Label>{"cpu"}</Label>
+                <Label>{"cpu(%)"}</Label>
                 <Input
                   autoFocus={true}
                   value={state.cpu}
+                  maxLength={3}
+                  onInput={(e:any) => {
+                      // 只允许输入数字，过滤掉非数字字符
+                      e.target.value = e.target.value.replace(/[^0-9]/g, '');
+                    }}
                   style={{ borderColor: '#02A7F0', width: '70%' }}
                   onChange={e => {
                     setState({
@@ -225,11 +230,16 @@ const AlertManagement = () => {
             </FormControl>
             <FormControl mb={7} w={'100%'}>
               <Flex alignItems={'center'}>
-                <Label>{"内存"}</Label>
+                <Label>{"内存(%)"}</Label>
                 <Input
                   autoFocus={true}
                   style={{ borderColor: '#02A7F0', width: '70%' }}
                   value={state.memory}
+                  maxLength={3}
+                  onInput={(e:any) => {
+                      // 只允许输入数字，过滤掉非数字字符
+                      e.target.value = e.target.value.replace(/[^0-9]/g, '');
+                    }}
                   onChange={e => {
                     setState({
                       ...state,

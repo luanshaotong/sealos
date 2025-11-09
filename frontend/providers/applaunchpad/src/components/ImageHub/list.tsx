@@ -728,6 +728,7 @@ const AppList = ({
               <Input
                 errorBorderColor="red.300"
                 isInvalid={constructError.constructImageNs !== ''}
+                maxLength={10}
                 value={constructImageNs}
                 onChange={(e) => {
                   setConstructImageNs(e.target.value);

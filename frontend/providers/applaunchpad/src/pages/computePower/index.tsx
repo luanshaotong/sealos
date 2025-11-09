@@ -205,7 +205,7 @@ const AppList = ({
 
   const getAppWithNameSpace = async (nameSpace?:string) => {
     const data = await getMyApps(nameSpace || nodeModel.namespace)
-    setAppList(data)
+    setAppList(data.apps)
   }
 
   const createNodeModelConfirm = async () => {

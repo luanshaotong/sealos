@@ -291,7 +291,7 @@ const Networks = ({
                   </Box>
                   <Box>
                     <Box mb={'10px'} h={'20px'} fontSize={'base'} color={'grayModern.900'}>
-                      {t('Node Port')}
+                      外部端口
                     </Box>
                     <Input
                       h={'32px'}
@@ -765,7 +765,7 @@ const Form = ({
                     width={'350px'}
                     type={'text'}
                     maxLength={40}
-                    placeholder={'只支持get请求的api,例如：/'}
+                    placeholder={'只支持get请求的api,例如：/api/test'}
                     {...register('preInspection', {
                       // required: '预检api不能为空'
                     })}
@@ -848,9 +848,17 @@ const Form = ({
                           isInvalid={!!errors?.hpa?.value}
                           width={'80px'}
                           type={'number'}
+                          max={100}
                           backgroundColor={
                             getValues('hpa.value') ? 'myWhite.500' : 'grayModern.100'
                           }
+                          onInput={(e:any) => {
+                            // 只允许输入数字，过滤掉非数字字符
+                            e.target.value = e.target.value.replace(/[^0-9]/g, '');
+                            if(e.target.value.length > 3) {
+                              e.target.value = e.target.value.slice(0, 3);
+                            }
+                          }}
                           mx={2}
                           {...register('hpa.value', {
                             required: t('The Cpu target is empty') || '',
@@ -1040,10 +1048,6 @@ const Form = ({
                                 {
                                   label: t('public'),
                                   id: `public`
-                                },
-                                {
-                                  label: t('private'),
-                                  id: `private`
                                 }
                               ]}
                               activeId={
