@@ -93,7 +93,7 @@ const EditEnvs = ({
           />
           {showLengthWarning && (
             <Box color="red.500" fontSize="sm" mt={2}>
-              '环境变量不能超过500个字符'
+              {'环境变量不能超过500个字符'}
             </Box>
           )}
         </ModalBody>
