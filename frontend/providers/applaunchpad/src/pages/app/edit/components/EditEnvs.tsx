@@ -30,6 +30,7 @@ const EditEnvs = ({
       .map((item) => `${item.key}=${item.value}`)
       .join('\n')
   );
+  const [showLengthWarning, setShowLengthWarning] = useState(false);
 
   const onSubmit = useCallback(() => {
     const lines = inputVal.split('\n').filter((item) => item);
@@ -85,8 +86,16 @@ const EditEnvs = ({
             placeholder={t('Env Placeholder') || ''}
             overflowX={'auto'}
             whiteSpace={inputVal === '' ? 'pre-wrap' : 'nowrap'}
-            onChange={(e) => setInputVal(e.target.value)}
+            onChange={(e) => {
+              setInputVal(e.target.value);
+              setShowLengthWarning(e.target.value.length >= 500);
+            }}
           />
+          {showLengthWarning && (
+            <Box color="red.500" fontSize="sm" mt={2}>
+              {t('Environment variables cannot exceed 500 characters') || '环境变量不能超过500个字符'}
+            </Box>
+          )}
         </ModalBody>
         <ModalFooter>
           <Button w={'88px'} onClick={onSubmit}>

@@ -55,6 +55,10 @@ const AlertManagement = () => {
   const toast = useToast();
   const [createLoading,setCreateLoading] = useState(false)
   const [state, setState] = useState({
+    cpu: '50',
+    memory: '50'
+  })
+  const [errors, setErrors] = useState({
     cpu: '',
     memory: ''
   })
@@ -98,7 +102,45 @@ const AlertManagement = () => {
     
   };
 
+  const validateForm = () => {
+    const newErrors = {
+      cpu: '',
+      memory: ''
+    };
+    let isValid = true;
+
+    if (!state.cpu || state.cpu.trim() === '') {
+      newErrors.cpu = 'CPU告警阈值不能为空';
+      isValid = false;
+    } else {
+      const cpuValue = parseInt(state.cpu);
+      if (cpuValue < 1 || cpuValue > 100) {
+        newErrors.cpu = 'CPU告警阈值范围为1-100';
+        isValid = false;
+      }
+    }
+
+    if (!state.memory || state.memory.trim() === '') {
+      newErrors.memory = '内存告警阈值不能为空';
+      isValid = false;
+    } else {
+      const memoryValue = parseInt(state.memory);
+      if (memoryValue < 1 || memoryValue > 100) {
+        newErrors.memory = '内存告警阈值范围为1-100';
+        isValid = false;
+      }
+    }
+
+    setErrors(newErrors);
+    return isValid;
+  };
+
   const handleConfirm = async () => {
+    if (!validateForm()) {
+      return;
+    }
+
+    setCreateLoading(true);
     try {
       const res = await saveCpu({ ...state })
       setCreateLoading(false)
@@ -107,6 +149,8 @@ const AlertManagement = () => {
         title: '创建成功'
       })
       onClose2()
+      // 清空错误
+      setErrors({ cpu: '', memory: '' })
     } catch (error: any) {
       setCreateLoading(false)
       toast({
@@ -134,7 +178,12 @@ const AlertManagement = () => {
             <Button onClick={async () => {
               onOpen2()
               const _state = await getCpu()
-              setState(_state)
+              setState({
+                cpu: _state?.cpu || '50',
+                memory: _state?.memory || '50'
+              })
+              // 清空错误提示
+              setErrors({ cpu: '', memory: '' })
             }}>告警设置</Button>
           </Box>
         </Flex>
@@ -207,46 +256,67 @@ const AlertManagement = () => {
           <ModalHeader>告警设置</ModalHeader>
           <ModalCloseButton />
           <ModalBody>
-            <FormControl mb={7} w={'100%'}>
+            <FormControl mb={7} w={'100%'} isInvalid={!!errors.cpu}>
               <Flex alignItems={'center'}>
                 <Label>{"cpu(%)"}</Label>
-                <Input
-                  autoFocus={true}
-                  value={state.cpu}
-                  maxLength={3}
-                  onInput={(e:any) => {
-                      // 只允许输入数字，过滤掉非数字字符
-                      e.target.value = e.target.value.replace(/[^0-9]/g, '');
+                <Box flex={1}>
+                  <Input
+                    autoFocus={true}
+                    value={state.cpu}
+                    maxLength={3}
+                    onInput={(e:any) => {
+                        // 只允许输入数字，过滤掉非数字字符
+                        e.target.value = e.target.value.replace(/[^0-9]/g, '');
+                      }}
+                    style={{ borderColor: errors.cpu ? '#E53E3E' : '#02A7F0', width: '100%' }}
+                    onChange={e => {
+                      setState({
+                        ...state,
+                        cpu: e.target.value
+                      })
+                      // 清除错误提示
+                      if (errors.cpu) {
+                        setErrors({ ...errors, cpu: '' })
+                      }
                     }}
-                  style={{ borderColor: '#02A7F0', width: '70%' }}
-                  onChange={e => {
-                    setState({
-                      ...state,
-                      cpu: e.target.value
-                    })
-                  }}
-                />
+                  />
+                  {errors.cpu && (
+                    <Box color="red.500" fontSize="sm" mt={1}>
+                      {errors.cpu}
+                    </Box>
+                  )}
+                </Box>
               </Flex>
             </FormControl>
-            <FormControl mb={7} w={'100%'}>
+            <FormControl mb={7} w={'100%'} isInvalid={!!errors.memory}>
               <Flex alignItems={'center'}>
                 <Label>{"内存(%)"}</Label>
-                <Input
-                  autoFocus={true}
-                  style={{ borderColor: '#02A7F0', width: '70%' }}
-                  value={state.memory}
-                  maxLength={3}
-                  onInput={(e:any) => {
-                      // 只允许输入数字，过滤掉非数字字符
-                      e.target.value = e.target.value.replace(/[^0-9]/g, '');
+                <Box flex={1}>
+                  <Input
+                    style={{ borderColor: errors.memory ? '#E53E3E' : '#02A7F0', width: '100%' }}
+                    value={state.memory}
+                    maxLength={3}
+                    onInput={(e:any) => {
+                        // 只允许输入数字，过滤掉非数字字符
+                        e.target.value = e.target.value.replace(/[^0-9]/g, '');
+                      }}
+                    onChange={e => {
+                      setState({
+                        ...state,
+                        memory: e.target.value
+                      })
+                      // 清除错误提示
+                      if (errors.memory) {
+                        setErrors({ ...errors, memory: '' })
+                      }
                     }}
-                  onChange={e => {
-                    setState({
-                      ...state,
-                      memory: e.target.value
-                    })
-                  }}
-                />
+                  />
+                  {errors.memory && (
+                    <Box color="red.500" fontSize="sm" mt={1}>
+                      {errors.memory}
+                    </Box>
+                  )}
+                </Box>
               </Flex>
             </FormControl>
           </ModalBody>

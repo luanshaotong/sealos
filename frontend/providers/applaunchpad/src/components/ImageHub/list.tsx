@@ -737,24 +737,38 @@ const AppList = ({
               />
             </Flex>
             <FileSelect fileExtension="*" multiple={false} files={constructFiles} setFiles={setConstructFiles} />
-            <Flex alignItems={'center'} gap={'12px'} mt={'12px'}>
-              <Flex alignItems={'center'} w={'100px'}>
+            <Flex alignItems={'flex-start'} gap={'12px'} mt={'12px'}>
+              <Flex alignItems={'center'} w={'100px'} mt={'8px'}>
                 Dockerfile: <span style={{ color: 'red' }}>✳</span>
               </Flex>
-              <Textarea
-                errorBorderColor="red.300"
-                isInvalid={constructError.constructDockerfile !== ''}
-                value={constructDockerfile}
-                backgroundColor={'#fff'}
-                disabled={constructFiles.length === 0}
-                borderColor={'#02A7F0'}
-                _hover={{ borderColor: '#02A7F0' }}
-                maxLength={4000}
-                onChange={(e) => {
-                  setConstructDockerfile(e.target.value);
-                  setError((prev) => ({ ...prev, constructDockerfile: '' }));
-                }}
-              />
+              <Box flex={1}>
+                <Textarea
+                  errorBorderColor="red.300"
+                  isInvalid={constructError.constructDockerfile !== ''}
+                  value={constructDockerfile}
+                  backgroundColor={'#fff'}
+                  disabled={constructFiles.length === 0}
+                  borderColor={'#02A7F0'}
+                  _hover={{ borderColor: '#02A7F0' }}
+                  maxLength={65535}
+                  onChange={(e) => {
+                    setConstructDockerfile(e.target.value);
+                    setConstructError((prev) => ({ ...prev, constructDockerfile: '' }));
+                    // 检查长度限制
+                    if (e.target.value.length >= 65535) {
+                      setConstructError((prev) => ({ 
+                        ...prev, 
+                        constructDockerfile: 'Dockerfile 不能超过 65535 个字符' 
+                      }));
+                    }
+                  }}
+                />
+                {constructError.constructDockerfile && (
+                  <Box color="red.500" fontSize="sm" mt={1}>
+                    {constructError.constructDockerfile}
+                  </Box>
+                )}
+              </Box>
             </Flex>
           </ModalBody>
           <ModalFooter>
@@ -772,7 +786,9 @@ const AppList = ({
                   constructImageName: constructImageName ? '' : '请输入',
                   constructImageTag: constructImageTag ? '' : '请输入',
                   constructImageNs: constructImageNs ? '' : '请输入',
-                  constructDockerfile: constructDockerfile ? '' : '请输入'
+                  constructDockerfile: constructDockerfile 
+                    ? (constructDockerfile.length >= 65535 ? 'Dockerfile 内容不能超过 65535 个字符' : '')
+                    : '请输入'
                 };
 
                 setConstructError(newError);
@@ -780,7 +796,7 @@ const AppList = ({
                 if (Object.values(newError).some((err) => err !== '')) {
                   toast({
                     status: 'error',
-                    title: '请填写所有必填项'
+                    title: '请填写所有必填项或修正错误'
                   });
                   return;
                 }

@@ -509,59 +509,90 @@ const AppList = ({
                 />
               </Flex>
             </FormControl>
-            <FormControl mb={7} w={'100%'}>
+            <FormControl mb={7} isInvalid={errors.port ? true : false} w={'100%'}>
               <Flex alignItems={'center'} mb={5}>
                 <Label>{"端口"}</Label>
-                <Input
-                  width={'60%'}
-                  autoFocus={true}
-                  type="number"
-                  onInput={(e:any) => {
-                    if (e.target.value.length > 5) {
-                      e.target.value = e.target.value.slice(0, 5);
-                    }
-                  }}
-                  maxLength={5}
-                  value={nodeModel.port}
-                  style={{borderColor:errors.port ? 'red' : '#02A7F0'}}
-                  {...register(`port`, {
-                    required: '请输入'
-                  })}
-                  onChange={e => {
-                    setNodeModel({
-                      ...nodeModel,
-                      port: e.target.value
-                    })
-                  }}
-                />
+                <Box width={'60%'}>
+                  <Input
+                    width={'100%'}
+                    autoFocus={true}
+                    type="number"
+                    onInput={(e:any) => {
+                      if (e.target.value.length > 5) {
+                        e.target.value = e.target.value.slice(0, 5);
+                      }
+                    }}
+                    maxLength={5}
+                    value={nodeModel.port}
+                    style={{borderColor:errors.port ? 'red' : '#02A7F0'}}
+                    {...register(`port`, {
+                      required: '请输入端口',
+                      min: {
+                        value: 1,
+                        message: '端口范围必须在 1-65535 之间'
+                      },
+                      max: {
+                        value: 65535,
+                        message: '端口范围必须在 1-65535 之间'
+                      },
+                      validate: (value) => {
+                        const num = parseInt(value);
+                        if (isNaN(num)) return '请输入有效的端口号';
+                        if (num < 1 || num > 65535) return '端口范围必须在 1-65535 之间';
+                        return true;
+                      }
+                    })}
+                    onChange={e => {
+                      setNodeModel({
+                        ...nodeModel,
+                        port: e.target.value
+                      })
+                    }}
+                  />
+                  {errors.port && (
+                    <Box color="red.500" fontSize="sm" mt={1}>
+                      {String(errors.port.message || '')}
+                    </Box>
+                  )}
+                </Box>
               </Flex>
             </FormControl>
-            <FormControl mb={7} w={'100%'}>
+            <FormControl mb={7} isInvalid={errors.qps ? true : false} w={'100%'}>
               <Flex alignItems={'center'} mb={5}>
                 <Label>{"qps"}</Label>
-                <Input
-                  width={'60%'}
-                  autoFocus={true}
-                  maxLength={3}
-                  type="number"
-                  onInput={(e:any) => {
-                    if (e.target.value.length > 3) {
-                      e.target.value = e.target.value.slice(0,3);
-                    }
-                  }}
-                  style={{borderColor:errors.qps ? 'red' : '#02A7F0'}}
-                  {...register(`qps`, {
-                    required: '请输入'
-                  })}
-                  value={nodeModel.qps}
-                   
-                  onChange={e => {
-                    setNodeModel({
-                      ...nodeModel,
-                      qps: e.target.value
-                    })
-                  }}
-                />
+                <Box width={'60%'}>
+                  <Input
+                    width={'100%'}
+                    autoFocus={true}
+                    type="number"
+                    style={{borderColor:errors.qps ? 'red' : '#02A7F0'}}
+                    {...register(`qps`, {
+                      required: '请输入 QPS',
+                      min: {
+                        value: 1,
+                        message: 'QPS 必须为正数'
+                      },
+                      validate: (value) => {
+                        const num = parseFloat(value);
+                        if (isNaN(num)) return '请输入有效的 QPS 值';
+                        if (num <= 0) return 'QPS 必须为正数';
+                        return true;
+                      }
+                    })}
+                    value={nodeModel.qps}
+                    onChange={e => {
+                      setNodeModel({
+                        ...nodeModel,
+                        qps: e.target.value
+                      })
+                    }}
+                  />
+                  {errors.qps && (
+                    <Box color="red.500" fontSize="sm" mt={1}>
+                      {String(errors.qps.message || '')}
+                    </Box>
+                  )}
+                </Box>
               </Flex>
             </FormControl>
 

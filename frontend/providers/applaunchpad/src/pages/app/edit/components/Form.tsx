@@ -396,6 +396,7 @@ const Form = ({
     control,
     setValue,
     getValues,
+    watch,
     formState: { errors }
   } = formHook;
 
@@ -575,16 +576,45 @@ const Form = ({
   const SliderList = useMemo(() => countSliderList(), [countSliderList, refresh]);
 
   const { data: images } = useQuery(['getImages'], getImages);
+  
+  // 使用 watch 监听当前容器的 imageRepo
+  const currentImageRepo = watch(`containers.${containerIndex}.imageRepo`);
+  const currentImageTag = watch(`containers.${containerIndex}.imageTag`);
+  
   const { data: imageTags } = useQuery(
-    ['getImageTags', getValues(`containers.${containerIndex}.imageRepo`), containerIndex],
+    ['getImageTags', currentImageRepo, containerIndex],
     () =>
       getImageTags({
-        repository: getValues(`containers.${containerIndex}.imageRepo`)
+        repository: currentImageRepo
       }),
     {
-      enabled: !!getValues(`containers.${containerIndex}.imageRepo`)
+      enabled: !!currentImageRepo
     }
   );
+
+  // 使用 ref 来跟踪是否是首次加载，避免用户清空后自动填充
+  const [isInitialLoad, setIsInitialLoad] = useState(true);
+  // 控制下拉框显示状态
+  const [showImageRepoDropdown, setShowImageRepoDropdown] = useState(false);
+  const [showImageTagDropdown, setShowImageTagDropdown] = useState(false);
+  
+  // 当镜像列表加载完成时，设置默认 imageRepo（仅首次加载）
+  useEffect(() => {
+    if (images?.repositories && images.repositories.length > 0 && !currentImageRepo && isInitialLoad) {
+      const defaultRepo = images.repositories[0];
+      setValue(`containers.${containerIndex}.imageRepo`, defaultRepo);
+      setIsInitialLoad(false);
+    }
+  }, [images?.repositories, currentImageRepo, containerIndex, setValue, isInitialLoad]);
+
+  // 当镜像标签列表加载完成时，设置默认 imageTag（首次加载或切换镜像名后）
+  useEffect(() => {
+    if (imageTags?.tags && imageTags.tags.length > 0 && !currentImageTag && currentImageRepo) {
+      const defaultTag = imageTags.tags[0];
+      setValue(`containers.${containerIndex}.imageTag`, defaultTag);
+      setValue(`containers.${containerIndex}.imageName`, `${currentImageRepo}:${defaultTag}`);
+    }
+  }, [imageTags?.tags, currentImageRepo, containerIndex, setValue]);
 
   return (
     <>
@@ -1065,68 +1095,153 @@ const Form = ({
                             />
                           </Flex>
                           <Box mt={4} pl={`${labelWidth}px`}>
-                            <FormControl w={'420px'}>
+                            <FormControl w={'420px'} position="relative" isInvalid={!!errors?.containers?.[containerIndex]?.imageRepo}>
                               <Box mb={1} fontSize={'sm'}>
                                 {t('Image Name')}
                               </Box>
-                              <MySelect
-                                borderColor={'#02A7F0'}
-                                _hover={{
-                                  bg: 'white'
-                                }}
-                                bg={'white'}
+                              <Input
                                 width={'350px'}
-                                value={getValues(`containers.${containerIndex}.imageRepo`)}
-                                list={
-                                  images?.repositories
-                                    ? images?.repositories.map((v: string) => ({
-                                        label: v,
-                                        value: v
-                                      }))
-                                    : []
-                                }
-                                onchange={(val: any) => {
-                                  setContainerIndex(containerIndex);
-                                  setValue(`containers.${containerIndex}.imageRepo`, val);
-                                  const tag = getValues(`containers.${containerIndex}.imageTag`);
-                                  if (tag) {
-                                    setValue(
-                                      `containers.${containerIndex}.imageName`,
-                                      val + ':' + tag
-                                    );
-                                  } else {
+                                borderColor={'#02A7F0'}
+                                bg={'white'}
+                                placeholder="输入或选择镜像名"
+                                onFocus={() => setShowImageRepoDropdown(true)}
+                                {...register(`containers.${containerIndex}.imageRepo`, {
+                                  required: t('Image name cannot be empty') || 'Image name cannot be empty',
+                                  onChange: (e) => {
+                                    setContainerIndex(containerIndex);
+                                    setValue(`containers.${containerIndex}.imageRepo`, e.target.value);
+                                    // 清空之前的 tag，等待新的镜像 tags 加载后自动设置
                                     setValue(`containers.${containerIndex}.imageTag`, '');
+                                    setValue(`containers.${containerIndex}.imageName`, '');
+                                    setShowImageRepoDropdown(true);
+                                  },
+                                  onBlur: () => {
+                                    // 延迟关闭，以便点击事件能触发
+                                    setTimeout(() => setShowImageRepoDropdown(false), 200);
                                   }
-                                }}
+                                })}
+                                autoComplete="off"
                               />
+                              {errors?.containers?.[containerIndex]?.imageRepo && (
+                                <Box color="red.500" fontSize="sm" mt={1}>
+                                  {String(errors.containers[containerIndex]?.imageRepo?.message || '')}
+                                </Box>
+                              )}
+                              {images?.repositories && images.repositories.length > 0 && showImageRepoDropdown && (
+                                <Box
+                                  position="absolute"
+                                  top="100%"
+                                  left={0}
+                                  right={0}
+                                  maxH="200px"
+                                  overflowY="auto"
+                                  bg="white"
+                                  border="1px solid"
+                                  borderColor="gray.200"
+                                  borderRadius="md"
+                                  mt={1}
+                                  zIndex={10}
+                                  boxShadow="md"
+                                >
+                                  {images.repositories
+                                    .filter((repo: string) => 
+                                      currentImageRepo ? repo.toLowerCase().includes(currentImageRepo.toLowerCase()) : true
+                                    )
+                                    .slice(0, 10)
+                                    .map((repo: string) => (
+                                      <Box
+                                        key={repo}
+                                        px={3}
+                                        py={2}
+                                        cursor="pointer"
+                                        _hover={{ bg: 'gray.100' }}
+                                        onClick={() => {
+                                          setValue(`containers.${containerIndex}.imageRepo`, repo);
+                                          setValue(`containers.${containerIndex}.imageTag`, '');
+                                          setValue(`containers.${containerIndex}.imageName`, '');
+                                          setShowImageRepoDropdown(false);
+                                        }}
+                                      >
+                                        {repo}
+                                      </Box>
+                                    ))}
+                                </Box>
+                              )}
                             </FormControl>
-                            <FormControl mt={'20px'} w={'420px'}>
+                            <FormControl mt={'20px'} w={'420px'} position="relative" isInvalid={!!errors?.containers?.[containerIndex]?.imageTag}>
                               <Box mb={1} fontSize={'sm'}>
                                 镜像版本
                               </Box>
-                              <MySelect
-                                borderColor={'#02A7F0'}
-                                _hover={{
-                                  bg: 'white'
-                                }}
-                                bg={'white'}
+                              <Input
                                 width={'350px'}
-                                value={getValues(`containers.${containerIndex}.imageTag`)}
-                                list={
-                                  imageTags?.tags
-                                    ? imageTags?.tags?.map((v: string) => ({
-                                        label: v,
-                                        value: v
-                                      }))
-                                    : []
-                                }
-                                onchange={(val: any) => {
-                                  setValue(`containers.${containerIndex}.imageTag`, val);
-                                  const name =
-                                    getValues(`containers.${containerIndex}.imageRepo`) + ':' + val;
-                                  setValue(`containers.${containerIndex}.imageName`, name);
-                                }}
+                                borderColor={'#02A7F0'}
+                                bg={'white'}
+                                placeholder="输入或选择镜像版本"
+                                onFocus={() => setShowImageTagDropdown(true)}
+                                {...register(`containers.${containerIndex}.imageTag`, {
+                                  required: t('Image tag cannot be empty') || 'Image tag cannot be empty',
+                                  onChange: (e) => {
+                                    setValue(`containers.${containerIndex}.imageTag`, e.target.value);
+                                    const repo = getValues(`containers.${containerIndex}.imageRepo`);
+                                    if (repo) {
+                                      setValue(`containers.${containerIndex}.imageName`, `${repo}:${e.target.value}`);
+                                    }
+                                    setShowImageTagDropdown(true);
+                                  },
+                                  onBlur: () => {
+                                    // 延迟关闭，以便点击事件能触发
+                                    setTimeout(() => setShowImageTagDropdown(false), 200);
+                                  }
+                                })}
+                                autoComplete="off"
                               />
+                              {errors?.containers?.[containerIndex]?.imageTag && (
+                                <Box color="red.500" fontSize="sm" mt={1}>
+                                  {String(errors.containers[containerIndex]?.imageTag?.message || '')}
+                                </Box>
+                              )}
+                              {imageTags?.tags && imageTags.tags.length > 0 && showImageTagDropdown && (
+                                <Box
+                                  position="absolute"
+                                  top="100%"
+                                  left={0}
+                                  right={0}
+                                  maxH="200px"
+                                  overflowY="auto"
+                                  bg="white"
+                                  border="1px solid"
+                                  borderColor="gray.200"
+                                  borderRadius="md"
+                                  mt={1}
+                                  zIndex={10}
+                                  boxShadow="md"
+                                >
+                                  {imageTags.tags
+                                    .filter((tag: string) => 
+                                      currentImageTag ? tag.toLowerCase().includes(currentImageTag.toLowerCase()) : true
+                                    )
+                                    .slice(0, 10)
+                                    .map((tag: string) => (
+                                      <Box
+                                        key={tag}
+                                        px={3}
+                                        py={2}
+                                        cursor="pointer"
+                                        _hover={{ bg: 'gray.100' }}
+                                        onClick={() => {
+                                          setValue(`containers.${containerIndex}.imageTag`, tag);
+                                          const repo = getValues(`containers.${containerIndex}.imageRepo`);
+                                          if (repo) {
+                                            setValue(`containers.${containerIndex}.imageName`, `${repo}:${tag}`);
+                                          }
+                                          setShowImageTagDropdown(false);
+                                        }}
+                                      >
+                                        {tag}
+                                      </Box>
+                                    ))}
+                                </Box>
+                              )}
                             </FormControl>
                             {getValues(`containers.${containerIndex}.secret.use`) ? (
                               <>
@@ -1336,46 +1451,60 @@ const Form = ({
                           />
                         </Flex>
                         {/* command && param */}
-                        <FormControl mb={7}>
+                        <FormControl mb={7} isInvalid={!!errors?.containers?.[containerIndex]?.runCMD}>
                           <Flex alignItems={'center'}>
                             <Label>{t('Run command')}</Label>
-                            <Input
-                              w={'350px'}
-                              maxLength={200}
-                              // bg={
-                              //   getValues(`containers.${containerIndex}.runCMD`)
-                              //     ? 'myWhite.500'
-                              //     : 'grayModern.100'
-                              // }
-                              placeholder={`${t('Such as')} /bin/bash -c`}
-                              {...register(`containers.${containerIndex}.runCMD`, {
-                                maxLength: {
-                                  value: 200,
-                                  message: t('Run command cannot exceed 200 characters') || 'Run command cannot exceed 200 characters'
-                                }
-                              })}
-                            />
+                            <Box flex={1}>
+                              <Input
+                                w={'350px'}
+                                maxLength={200}
+                                // bg={
+                                //   getValues(`containers.${containerIndex}.runCMD`)
+                                //     ? 'myWhite.500'
+                                //     : 'grayModern.100'
+                                // }
+                                placeholder={`${t('Such as')} /bin/bash -c`}
+                                {...register(`containers.${containerIndex}.runCMD`, {
+                                  maxLength: {
+                                    value: 200,
+                                    message: t('Run command cannot exceed 200 characters') || 'Run command cannot exceed 200 characters'
+                                  }
+                                })}
+                              />
+                              {errors?.containers?.[containerIndex]?.runCMD && (
+                                <Box color="red.500" fontSize="sm" mt={1}>
+                                  {errors.containers?.[containerIndex]?.runCMD?.message}
+                                </Box>
+                              )}
+                            </Box>
                           </Flex>
                         </FormControl>
-                        <FormControl>
+                        <FormControl isInvalid={!!errors?.containers?.[containerIndex]?.cmdParam}>
                           <Flex alignItems={'center'}>
                             <Label>{t('Command parameters')}</Label>
-                            <Input
-                              w={'350px'}
-                              maxLength={200}
-                              // bg={
-                              //   getValues(`containers.${containerIndex}.cmdParam`)
-                              //     ? 'myWhite.500'
-                              //     : 'grayModern.100'
-                              // }
-                              placeholder={`${t('Such as')} sleep 10 && /entrypoint.sh db createdb`}
-                              {...register(`containers.${containerIndex}.cmdParam`, {
-                                maxLength: {
-                                  value: 200,
-                                  message: t('Command parameters cannot exceed 200 characters') || 'Command parameters cannot exceed 200 characters'
-                                }
-                              })}
-                            />
+                            <Box flex={1}>
+                              <Input
+                                w={'350px'}
+                                maxLength={200}
+                                // bg={
+                                //   getValues(`containers.${containerIndex}.cmdParam`)
+                                //     ? 'myWhite.500'
+                                //     : 'grayModern.100'
+                                // }
+                                placeholder={`${t('Such as')} sleep 10 && /entrypoint.sh db createdb`}
+                                {...register(`containers.${containerIndex}.cmdParam`, {
+                                  maxLength: {
+                                    value: 200,
+                                    message: t('Command parameters cannot exceed 200 characters') || 'Command parameters cannot exceed 200 characters'
+                                  }
+                                })}
+                              />
+                              {errors?.containers?.[containerIndex]?.cmdParam && (
+                                <Box color="red.500" fontSize="sm" mt={1}>
+                                  {errors.containers?.[containerIndex]?.cmdParam?.message}
+                                </Box>
+                              )}
+                            </Box>
                           </Flex>
                         </FormControl>
 

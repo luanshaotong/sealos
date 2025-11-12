@@ -105,6 +105,11 @@ const ConfigmapModal = ({
                   }
                 })}
               />
+              {errors.value && (
+                <Box color="red.500" fontSize="sm" mt={1}>
+                  {errors.value.message}
+                </Box>
+              )}
             </FormControl>
           </ModalBody>
 
