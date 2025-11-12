@@ -79,6 +79,7 @@ const EditEnvs = ({
           <Textarea
             h={'350px'}
             maxH={'100%'}
+            maxLength={500}
             value={inputVal}
             resize={'both'}
             placeholder={t('Env Placeholder') || ''}

@@ -235,5 +235,11 @@
   "node_info": "节点信息",
   "upload_file": "上传文件并部署",
   "upload_file_tip": "点击上传文件",
-  "priority": "优先级"
+  "priority": "优先级",
+  "App name cannot be empty": "应用名称不能为空",
+  "Container name cannot be empty": "容器名称不能为空",
+  "Run command cannot exceed 200 characters": "运行命令不能超过200个字符",
+  "Command parameters cannot exceed 200 characters": "命令参数不能超过200个字符",
+  "File value cannot exceed 65535 characters": "文件内容不能超过65535个字符",
+  "Storage path cannot exceed 63 characters": "挂载路径不能超过63个字符"
 }

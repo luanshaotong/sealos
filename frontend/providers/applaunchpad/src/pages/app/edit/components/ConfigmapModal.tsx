@@ -96,8 +96,13 @@ const ConfigmapModal = ({
               <Textarea
                 rows={10}
                 resize={'both'}
+                maxLength={65535}
                 {...register('value', {
-                  required: t('File Value can not empty') || 'File Value can not empty'
+                  required: t('File Value can not empty') || 'File Value can not empty',
+                  maxLength: {
+                    value: 65535,
+                    message: t('File value cannot exceed 65535 characters') || 'File value cannot exceed 65535 characters'
+                  }
                 })}
               />
             </FormControl>

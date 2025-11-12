@@ -206,7 +206,7 @@ export const json2DeployCr = (data: AppEditType, type: 'deployment' | 'statefuls
         template: {
           metadata: templateMetadata,
           spec: {
-            ...(data?.nodeName ? { nodeName: data.nodeName } : {}),
+            ...(data?.nodeName ? { nodeSelector: { 'kubernetes.io/hostname': data.nodeName } } : {}),
             automountServiceAccountToken: false,
             imagePullSecrets,
             containers: containers,
@@ -233,7 +233,7 @@ export const json2DeployCr = (data: AppEditType, type: 'deployment' | 'statefuls
         template: {
           metadata: templateMetadata,
           spec: {
-            ...(data?.nodeName ? { nodeName: data.nodeName } : {}),
+            ...(data?.nodeName ? { nodeSelector: { 'kubernetes.io/hostname': data.nodeName } } : {}),
             automountServiceAccountToken: false,
             imagePullSecrets,
             terminationGracePeriodSeconds: 10,

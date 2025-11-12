@@ -131,6 +131,7 @@ const StoreModal = ({
               </Box>
               <Input
                 width={'100%'}
+                maxLength={63}
                 placeholder="如：/data"
                 title={
                   isEditStore
@@ -140,6 +141,10 @@ const StoreModal = ({
                 disabled={isEditStore}
                 {...register('path', {
                   required: t('Storage path can not empty') || 'Storage path can not empty',
+                  maxLength: {
+                    value: 63,
+                    message: t('Storage path cannot exceed 63 characters') || 'Storage path cannot exceed 63 characters'
+                  },
                   pattern: {
                     value: /^[0-9a-zA-Z_/][0-9a-zA-Z_/.-]*[0-9a-zA-Z_/]$/,
                     message: t('Mount Path Auth')

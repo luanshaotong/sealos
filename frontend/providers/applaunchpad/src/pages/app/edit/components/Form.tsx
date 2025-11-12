@@ -708,7 +708,7 @@ const Form = ({
                       ) || ''
                     }
                     {...register('appName', {
-                      required: t('Not allowed to change app name') || '',
+                      required: t('App name cannot be empty') || 'App name cannot be empty',
                       maxLength: 60,
                       pattern: {
                         value: /^[a-z][a-z0-9]+([-.][a-z0-9]+)*$/g,
@@ -1017,15 +1017,15 @@ const Form = ({
                   return (
                     <TabPanel key={item.id} padding={'0px'}>
                       <Box px={'42px'} py={'24px'}>
-                        {/* app name */}
-                        <FormControl mb={7} isInvalid={!!errors.appName} w={'500px'}>
+                        {/* container name */}
+                        <FormControl mb={7} isInvalid={!!errors.containers?.[containerIndex]?.name} w={'500px'}>
                           <Flex alignItems={'center'}>
                             <Label>{t('Name')}</Label>
                             <Input
                               width={'350px'}
                               maxLength={10}
                               {...register(`containers.${containerIndex}.name`, {
-                                required: t('Not allowed to change app name') || '',
+                                required: t('Container name cannot be empty') || 'Container name cannot be empty',
                                 maxLength: 10,
                                 pattern: {
                                   value: /^[a-z][a-z0-9]+([-.][a-z0-9]+)*$/g,
@@ -1341,13 +1341,19 @@ const Form = ({
                             <Label>{t('Run command')}</Label>
                             <Input
                               w={'350px'}
+                              maxLength={200}
                               // bg={
                               //   getValues(`containers.${containerIndex}.runCMD`)
                               //     ? 'myWhite.500'
                               //     : 'grayModern.100'
                               // }
                               placeholder={`${t('Such as')} /bin/bash -c`}
-                              {...register(`containers.${containerIndex}.runCMD`)}
+                              {...register(`containers.${containerIndex}.runCMD`, {
+                                maxLength: {
+                                  value: 200,
+                                  message: t('Run command cannot exceed 200 characters') || 'Run command cannot exceed 200 characters'
+                                }
+                              })}
                             />
                           </Flex>
                         </FormControl>
@@ -1356,13 +1362,19 @@ const Form = ({
                             <Label>{t('Command parameters')}</Label>
                             <Input
                               w={'350px'}
+                              maxLength={200}
                               // bg={
                               //   getValues(`containers.${containerIndex}.cmdParam`)
                               //     ? 'myWhite.500'
                               //     : 'grayModern.100'
                               // }
                               placeholder={`${t('Such as')} sleep 10 && /entrypoint.sh db createdb`}
-                              {...register(`containers.${containerIndex}.cmdParam`)}
+                              {...register(`containers.${containerIndex}.cmdParam`, {
+                                maxLength: {
+                                  value: 200,
+                                  message: t('Command parameters cannot exceed 200 characters') || 'Command parameters cannot exceed 200 characters'
+                                }
+                              })}
                             />
                           </Flex>
                         </FormControl>
@@ -1514,7 +1526,8 @@ const Form = ({
                           bg: 'rgba(17, 24, 36, 0.05)'
                         }}
                         onClick={() => {
-                          if (storeList.length === 1) {
+                          // 编辑模式下，至少保留一个存储
+                          if (isEdit && storeList.length === 1) {
                             toast({
                               title: t('Store At Least One'),
                               status: 'error'
