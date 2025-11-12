@@ -1,4 +1,4 @@
-import { authSession, getLocalAdminKubeConfig } from '@/services/backend/auth';
+import { authSession, getLocalAdminKubeConfig, getAdminAuthorization } from '@/services/backend/auth';
 import { getK8s } from '@/services/backend/kubernetes';
 import { jsonRes } from '@/services/backend/response';
 import { ApiResp } from '@/services/kubernet';
@@ -80,10 +80,16 @@ const AdapterChartData: Record<
 export default async function handler(req: NextApiRequest, res: NextApiResponse<ApiResp>) {
   try {
     const reqNamespace = req.query.namespace as string;
-    const kubeconfig = await authSession(req.headers);
-    const { namespace, kc } = await getK8s({
-      kubeconfig: kubeconfig
+    // const kubeconfig = await authSession(req.headers);
+    // const { namespace, kc } = await getK8s({
+    //   kubeconfig: kubeconfig
+    // });
+    const { k8sApp, k8sCore, k8sAutoscaling, k8sNetworkingApp, namespace, k8sCustomObjects } =
+    await getK8s({
+      kubeconfig: await getAdminAuthorization(req.headers)
     });
+
+
 
     const { queryName, queryKey, start, end, step = '1m' } = req.query;
 

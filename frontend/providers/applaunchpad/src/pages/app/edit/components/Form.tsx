@@ -1053,10 +1053,10 @@ const Form = ({
                             <Label>{t('Name')}</Label>
                             <Input
                               width={'350px'}
-                              maxLength={10}
+                              maxLength={20}
                               {...register(`containers.${containerIndex}.name`, {
                                 required: t('Container name cannot be empty') || 'Container name cannot be empty',
-                                maxLength: 10,
+                                maxLength: 20,
                                 pattern: {
                                   value: /^[a-z][a-z0-9]+([-.][a-z0-9]+)*$/g,
                                   message: t(
@@ -1106,7 +1106,7 @@ const Form = ({
                                 placeholder="输入或选择镜像名"
                                 onFocus={() => setShowImageRepoDropdown(true)}
                                 {...register(`containers.${containerIndex}.imageRepo`, {
-                                  required: t('Image name cannot be empty') || 'Image name cannot be empty',
+                                  required: '镜像名不能为空',
                                   onChange: (e) => {
                                     setContainerIndex(containerIndex);
                                     setValue(`containers.${containerIndex}.imageRepo`, e.target.value);
@@ -1179,7 +1179,7 @@ const Form = ({
                                 placeholder="输入或选择镜像版本"
                                 onFocus={() => setShowImageTagDropdown(true)}
                                 {...register(`containers.${containerIndex}.imageTag`, {
-                                  required: t('Image tag cannot be empty') || 'Image tag cannot be empty',
+                                  required: '镜像版本不能为空',
                                   onChange: (e) => {
                                     setValue(`containers.${containerIndex}.imageTag`, e.target.value);
                                     const repo = getValues(`containers.${containerIndex}.imageRepo`);
