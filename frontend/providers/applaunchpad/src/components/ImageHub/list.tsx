@@ -750,7 +750,7 @@ const AppList = ({
                   disabled={constructFiles.length === 0}
                   borderColor={'#02A7F0'}
                   _hover={{ borderColor: '#02A7F0' }}
-                  maxLength={65535}
+                  maxLength={1000}
                   onChange={(e) => {
                     setConstructDockerfile(e.target.value);
                     setConstructError((prev) => ({ ...prev, constructDockerfile: '' }));

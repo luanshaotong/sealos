@@ -615,7 +615,7 @@ const AppList = ({
           <ModalHeader>{t('New Namaspace')}</ModalHeader>
           <ModalCloseButton />
           <ModalBody>
-            <Input value={ns} onChange={(e) => setNs(e.target.value)} />
+            <Input value={ns} maxLength={10} onChange={(e) => setNs(e.target.value)} />
           </ModalBody>
           <ModalFooter>
             <Button

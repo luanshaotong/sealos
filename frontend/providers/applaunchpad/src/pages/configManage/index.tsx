@@ -76,6 +76,7 @@ const ConfigManage = () => {
                 value={configInfo}
                 onChange={(e) => setConfigInfo(e.target.value)}
                 w={'full'}
+                maxLength={500}
                 placeholder="请输入配置信息"
                 bg={'#ffffff'}
                 _placeholder={{ color: 'gray.500' }}

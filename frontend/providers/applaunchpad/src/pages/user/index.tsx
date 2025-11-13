@@ -299,6 +299,7 @@ const AppList = ({
                   onChange={(e) => setUsername(e.target.value)}
                   width={300}
                   style={{borderColor:errors.username ? 'red' : '#02A7F0'}}
+                  
                   // {...register(`username`, {
                   //   required: '请输入'
                   // })}
@@ -311,7 +312,7 @@ const AppList = ({
               <Flex alignItems={'center'} mb={5}>
                 <Label>角色</Label>
                 <Select
-                  style={{ borderColor:errors.roleId ? 'red' : '#02A7F0' }}
+                  style={{borderColor: '#02A7F0'}}
                   width={300}
                   mr={4}
                   value={roleId}
@@ -388,7 +389,7 @@ const AppList = ({
                   onChange={(e) => {
                     setRoleId(e.target.value)
                   }}
-                  style={{borderColor:errors.username ? 'red' : '#02A7F0'}}
+                  style={{borderColor: '#02A7F0'}}
                   // {...register(`roleId`, {
                   //   required: '请输入'
                   // })}

@@ -487,6 +487,9 @@ const AppList = ({
                   }}
                 />
               </Flex>
+              <FormHelperText color="red.500" mb={1} pl='120px'>
+                {(!nodeModel.app_list || nodeModel.app_list.length === 0) && "请至少选择一个应用"}
+              </FormHelperText>
             </FormControl>
             <FormControl mb={7} isInvalid={errors.core_api ? true : false} w={'100%'}>
               <Flex alignItems={'center'} mb={5}>
@@ -564,7 +567,11 @@ const AppList = ({
                   <Input
                     width={'100%'}
                     autoFocus={true}
-                    type="number"
+                    maxLength={4}
+                    onInput={(e:any) => {
+                      // 只允许输入数字，过滤掉非数字字符
+                      e.target.value = e.target.value.replace(/[^0-9]/g, '');
+                    }}
                     style={{borderColor:errors.qps ? 'red' : '#02A7F0'}}
                     {...register(`qps`, {
                       required: '请输入 QPS',
@@ -603,11 +610,8 @@ const AppList = ({
                   width={'60%'}
                   autoFocus={true}
                   maxLength={4}
-                  type="number"
                   onInput={(e:any) => {
-                    if (e.target.value.length > 4) {
-                      e.target.value = e.target.value.slice(0,4);
-                    }
+                    e.target.value = e.target.value.replace(/[^0-9]/g, '');
                   }}
                   style={{borderColor:errors.max_latency ? 'red' : '#02A7F0'}}
                   {...register(`max_latency`, {
