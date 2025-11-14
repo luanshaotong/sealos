@@ -1147,7 +1147,6 @@ const Form = ({
                                     .filter((repo: string) => 
                                       currentImageRepo ? repo.toLowerCase().includes(currentImageRepo.toLowerCase()) : true
                                     )
-                                    .slice(0, 10)
                                     .map((repo: string) => (
                                       <Box
                                         key={repo}
@@ -1220,7 +1219,6 @@ const Form = ({
                                     .filter((tag: string) => 
                                       currentImageTag ? tag.toLowerCase().includes(currentImageTag.toLowerCase()) : true
                                     )
-                                    .slice(0, 10)
                                     .map((tag: string) => (
                                       <Box
                                         key={tag}
@@ -1728,3 +1726,4 @@ const Form = ({
 };
 
 export default Form;
+

@@ -77,10 +77,9 @@ const AppList = ({
     setValue,
     getValues,
     handleSubmit,
+    reset,
     formState: { errors }
-  } = useForm<any>({
-    defaultValues: currentData
-  })
+  } = useForm<any>()
   const columns = [
     { title: '用户名', field: 'username' },
     { title: '命名空间', field: 'namespace' },
@@ -162,16 +161,20 @@ const AppList = ({
   }
 
   const onEdit = async (data: any) => {
-    setCurrentData({
+    const formData = {
       namespace: data.namespace,
       username: data.username,
+      roleId: data.roleId,
       services: Number(data.services),
       requestsStorage: Number(data.storage.split('Gi')[0]),
       persistentVolumeClaims: Number(data.persistentvolumeclaims),
       limitsCpu: Number(data.cpu),
       limitsMemory: Number(data.memory.split('Gi')[0]),
-    })
+    }
+    setCurrentData(formData)
     setRoleId(data.roleId)
+    // 使用 reset 方法将数据同步到表单
+    reset(formData)
     setIsEditOpen(true)
   }
 
@@ -207,31 +210,37 @@ const AppList = ({
     setIsEditOpen(false)
   }
 
-  const onEditConfirm = async () => {
+  const onEditConfirm = async (data: any) => {
     try {
-      if (currentData) {
-        const resp = await updateResourceQuotas(currentData.namespace, {
-          namespace: currentData.namespace,
-          username: currentData.username,
-          roleId: roleId,
-          limits: {
-            services: currentData.services,
-            requestsStorage: `${currentData.requestsStorage}Gi`,
-            persistentVolumeClaims: currentData.persistentVolumeClaims,
-            limitsCpu: `${currentData.limitsCpu}`,
-            limitsMemory: `${currentData.limitsMemory}Gi`
-          }
-        })
-        if (resp) {
-          toast({
-            status: 'success',
-            title: '编辑成功'
-          })
-          onEditClose()
-          initUserDataAndResource()
+      console.log('提交的表单数据:', data);
+      console.log('currentData:', currentData);
+      
+      const resp = await updateResourceQuotas(currentData.namespace, {
+        namespace: currentData.namespace,
+        username: data.username,
+        roleId: data.roleId,
+        limits: {
+          services: data.services,
+          requestsStorage: `${data.requestsStorage}Gi`,
+          persistentVolumeClaims: data.persistentVolumeClaims,
+          limitsCpu: `${data.limitsCpu}`,
+          limitsMemory: `${data.limitsMemory}Gi`
         }
+      })
+      if (resp) {
+        toast({
+          status: 'success',
+          title: '编辑成功'
+        })
+        onEditClose()
+        initUserDataAndResource()
       }
-    } catch (error) {
+    } catch (error: any) {
+      console.error('编辑失败:', error);
+      toast({
+        status: 'error',
+        title: error?.message || '编辑失败'
+      })
     }
   }
 
@@ -363,184 +372,207 @@ const AppList = ({
           <ModalCloseButton />
           <ModalBody>
             <FormControl mb={7} w={'100%'}>
-              <Flex alignItems={'center'} mb={5}>
-                <Label>用户名</Label>
-                <Input
-                  type='text'
-                  value={currentData?.username}
-                  style={{borderColor:errors.username ? 'red' : '#02A7F0'}}
-                  {...register(`username`, {
-                    required: '请输入'
-                  })}
-                  onChange={(e) => {
-                    setCurrentData({
-                      ...currentData,
-                      username: e.target.value
-                    })
-                  }}
-                  autoFocus={true}
-                  maxLength={20}
-                />
+              <Flex alignItems={'flex-start'} mb={5}>
+                <Label mt={2}>用户名</Label>
+                <Box flex={1}>
+                  <Input
+                    type='text'
+                    style={{borderColor:errors.username ? 'red' : '#02A7F0'}}
+                    {...register(`username`, {
+                      required: '请输入用户名'
+                    })}
+                    autoFocus={true}
+                    maxLength={20}
+                  />
+                  {errors.username && (
+                    <Box color="red.500" fontSize="sm" mt={1}>
+                      {String(errors.username.message)}
+                    </Box>
+                  )}
+                </Box>
               </Flex>
-              <Flex alignItems={'center'} mb={5}>
-                <Label>角色</Label>
-                <Select
-                  value={roleId}
-                  onChange={(e) => {
-                    setRoleId(e.target.value)
-                  }}
-                  style={{borderColor: '#02A7F0'}}
-                  // {...register(`roleId`, {
-                  //   required: '请输入'
-                  // })}
-                  width={300}
-                >
-                  {roles.map((role) => (
-                    <option key={role.id} value={role.id}>
-                      {role.name}
-                    </option>
-                  ))}
-                </Select>
+              <Flex alignItems={'flex-start'} mb={5}>
+                <Label mt={2}>角色</Label>
+                <Box flex={1}>
+                  <Select
+                    style={{borderColor:errors.roleId ? 'red' : '#02A7F0'}}
+                    {...register(`roleId`, {
+                      required: '请选择角色',
+                      onChange: (e) => {
+                        setRoleId(e.target.value)
+                      }
+                    })}
+                    width={300}
+                  >
+                    {roles.map((role) => (
+                      <option key={role.id} value={role.id}>
+                        {role.name}
+                      </option>
+                    ))}
+                  </Select>
+                  {errors.roleId && (
+                    <Box color="red.500" fontSize="sm" mt={1}>
+                      {String(errors.roleId.message)}
+                    </Box>
+                  )}
+                </Box>
               </Flex>
               <Flex alignItems={'center'} mb={5}>
                 <Label>命名空间</Label>
                 <Input
-                  value={currentData?.namespace}
-                  autoFocus={true}
+                  value={currentData?.namespace || ''}
                   maxLength={60}
                   disabled={true}
+                  readOnly
                 />
               </Flex>
-              <Flex alignItems={'center'} mb={5}>
-                <Label>网络服务数量</Label>
-                <Input
-                  type='number'
-                  value={currentData?.services}
-                  style={{borderColor:errors.services ? 'red' : '#02A7F0'}}
-                  {...register(`services`, {
-                    required: '请输入'
-                  })}
-                  onInput={(e:any) => {
-                    if (e.target.value.length > 7) {
-                      e.target.value = e.target.value.slice(0, 7);
-                    }
-                  }}
-                  onChange={(e) => {
-                    setCurrentData({
-                      ...currentData,
-                      services: Number(e.target.value)
-                    })
-                  }}
-                  autoFocus={true}
-                  maxLength={7}
-                />
-              </Flex>
-              <Flex alignItems={'center'} mb={5}>
-                <Label>请求存储</Label>
-                <InputGroup>
+              <Flex alignItems={'flex-start'} mb={5}>
+                <Label mt={2}>网络服务数量</Label>
+                <Box flex={1}>
                   <Input
                     type='number'
-                    value={currentData?.requestsStorage}
+                    style={{borderColor:errors.services ? 'red' : '#02A7F0'}}
+                    {...register(`services`, {
+                      required: '请输入网络服务数量',
+                      valueAsNumber: true
+                    })}
                     onInput={(e:any) => {
                       if (e.target.value.length > 7) {
                         e.target.value = e.target.value.slice(0, 7);
                       }
                     }}
-                    style={{borderColor:errors.requestsStorage ? 'red' : '#02A7F0'}}
-                    {...register(`requestsStorage`, {
-                      required: '请输入'
-                    })}
-                    onChange={(e) => {
-                      setCurrentData({
-                        ...currentData,
-                        requestsStorage: Number(e.target.value)
-                      })
-                    }}
-                    autoFocus={true}
                     maxLength={7}
                   />
-                  <InputRightAddon style={{ height: 32, borderColor: '#02A7F0' }}>Gi</InputRightAddon>
-                </InputGroup>
+                  {errors.services && (
+                    <Box color="red.500" fontSize="sm" mt={1}>
+                      {String(errors.services.message)}
+                    </Box>
+                  )}
+                </Box>
               </Flex>
-              <Flex alignItems={'center'} mb={5}>
-                <Label>磁盘数量</Label>
-                <Input
-                  type='number'
-                  value={currentData?.persistentVolumeClaims}
-                  onInput={(e:any) => {
-                    if (e.target.value.length > 7) {
-                      e.target.value = e.target.value.slice(0, 7);
-                    }
-                  }}
-                  style={{borderColor:errors.persistentVolumeClaims ? 'red' : '#02A7F0'}}
-                  {...register(`persistentVolumeClaims`, {
-                    required: '请输入'
-                  })}
-                  onChange={(e) => {
-                    setCurrentData({
-                      ...currentData,
-                      persistentVolumeClaims: Number(e.target.value)
-                    })
-                  }}
-                  autoFocus={true}
-                  maxLength={60}
-                />
+              <Flex alignItems={'flex-start'} mb={5}>
+                <Label mt={2}>请求存储</Label>
+                <Box flex={1}>
+                  <InputGroup>
+                    <Input
+                      type='number'
+                      onInput={(e:any) => {
+                        if (e.target.value.length > 7) {
+                          e.target.value = e.target.value.slice(0, 7);
+                        }
+                      }}
+                      style={{borderColor:errors.requestsStorage ? 'red' : '#02A7F0'}}
+                      {...register(`requestsStorage`, {
+                        required: '请输入请求存储',
+                        valueAsNumber: true
+                      })}
+                      maxLength={7}
+                    />
+                    <InputRightAddon style={{ height: 32, borderColor: '#02A7F0' }}>Gi</InputRightAddon>
+                  </InputGroup>
+                  {errors.requestsStorage && (
+                    <Box color="red.500" fontSize="sm" mt={1}>
+                      {String(errors.requestsStorage.message)}
+                    </Box>
+                  )}
+                </Box>
               </Flex>
-              <Flex alignItems={'center'} mb={5}>
-                <Label>CPU 限制</Label>
-                <Input
-                  type='number'
-                  value={currentData?.limitsCpu}
-                  onInput={(e:any) => {
-                    if (e.target.value.length > 7) {
-                      e.target.value = e.target.value.slice(0, 7);
-                    }
-                  }}
-                  style={{borderColor:errors.limitsCpu ? 'red' : '#02A7F0'}}
-                  {...register(`limitsCpu`, {
-                    required: '请输入'
-                  })}
-                  onChange={(e) => {
-                    setCurrentData({
-                      ...currentData,
-                      limitsCpu: Number(e.target.value)
-                    })
-                  }}
-                  autoFocus={true}
-                  maxLength={60}
-                />
-              </Flex>
-              <Flex alignItems={'center'} mb={5}>
-                <Label>内存限制</Label>
-                <InputGroup>
+              <Flex alignItems={'flex-start'} mb={5}>
+                <Label mt={2}>磁盘数量</Label>
+                <Box flex={1}>
                   <Input
                     type='number'
-                    value={currentData?.limitsMemory}
                     onInput={(e:any) => {
-                    if (e.target.value.length > 7) {
-                      e.target.value = e.target.value.slice(0, 7);
-                    }
-                  }}
-                  style={{borderColor:errors.limitsMemory ? 'red' : '#02A7F0'}}
-                  {...register(`limitsMemory`, {
-                    required: '请输入'
-                  })}
-                    onChange={(e) => {
-                      setCurrentData({
-                        ...currentData,
-                        limitsMemory: Number(e.target.value)
-                      })
+                      if (e.target.value.length > 7) {
+                        e.target.value = e.target.value.slice(0, 7);
+                      }
                     }}
-                    autoFocus={true}
+                    style={{borderColor:errors.persistentVolumeClaims ? 'red' : '#02A7F0'}}
+                    {...register(`persistentVolumeClaims`, {
+                      required: '请输入磁盘数量',
+                      valueAsNumber: true
+                    })}
                     maxLength={60}
                   />
-                  <InputRightAddon style={{ height: 32, borderColor: '#02A7F0' }}>Gi</InputRightAddon>
-                </InputGroup>
+                  {errors.persistentVolumeClaims && (
+                    <Box color="red.500" fontSize="sm" mt={1}>
+                      {String(errors.persistentVolumeClaims.message)}
+                    </Box>
+                  )}
+                </Box>
+              </Flex>
+              <Flex alignItems={'flex-start'} mb={5}>
+                <Label mt={2}>CPU 限制</Label>
+                <Box flex={1}>
+                  <Input
+                    type='number'
+                    onInput={(e:any) => {
+                      if (e.target.value.length > 7) {
+                        e.target.value = e.target.value.slice(0, 7);
+                      }
+                    }}
+                    style={{borderColor:errors.limitsCpu ? 'red' : '#02A7F0'}}
+                    {...register(`limitsCpu`, {
+                      required: '请输入CPU限制',
+                      valueAsNumber: true
+                    })}
+                    maxLength={60}
+                  />
+                  {errors.limitsCpu && (
+                    <Box color="red.500" fontSize="sm" mt={1}>
+                      {String(errors.limitsCpu.message)}
+                    </Box>
+                  )}
+                </Box>
+              </Flex>
+              <Flex alignItems={'flex-start'} mb={5}>
+                <Label mt={2}>内存限制</Label>
+                <Box flex={1}>
+                  <InputGroup>
+                    <Input
+                      type='number'
+                      onInput={(e:any) => {
+                        if (e.target.value.length > 7) {
+                          e.target.value = e.target.value.slice(0, 7);
+                        }
+                      }}
+                      style={{borderColor:errors.limitsMemory ? 'red' : '#02A7F0'}}
+                      {...register(`limitsMemory`, {
+                        required: '请输入内存限制',
+                        valueAsNumber: true
+                      })}
+                      maxLength={60}
+                    />
+                    <InputRightAddon style={{ height: 32, borderColor: '#02A7F0' }}>Gi</InputRightAddon>
+                  </InputGroup>
+                  {errors.limitsMemory && (
+                    <Box color="red.500" fontSize="sm" mt={1}>
+                      {String(errors.limitsMemory.message)}
+                    </Box>
+                  )}
+                </Box>
               </Flex>
             </FormControl>
           </ModalBody>
           <ModalFooter>
-            <Button colorScheme="blue" mr={3} onClick={handleSubmit(onEditConfirm)}>
+            <Button 
+              colorScheme="blue" 
+              mr={3} 
+              onClick={handleSubmit(
+                onEditConfirm,
+                (errors) => {
+                  console.log('表单验证错误:', errors);
+                  // 找到第一个错误并显示
+                  const firstError = Object.keys(errors)[0];
+                  const errorMessage = errors[firstError]?.message || '请检查表单输入';
+                  toast({
+                    status: 'error',
+                    title: `${firstError}: ${errorMessage}`,
+                    duration: 5000
+                  });
+                }
+              )}
+            >
               确认
             </Button>
           </ModalFooter>
