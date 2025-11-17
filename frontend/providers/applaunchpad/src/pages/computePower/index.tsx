@@ -582,7 +582,7 @@ const AppList = ({
                       validate: (value) => {
                         const num = parseFloat(value);
                         if (isNaN(num)) return '请输入有效的 QPS 值';
-                        if (num <= 0) return 'QPS 必须为正数';
+                        if (num < 0) return 'QPS 必须为正数';
                         return true;
                       }
                     })}
