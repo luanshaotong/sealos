@@ -109,7 +109,7 @@ const AlertManagement = () => {
     };
     let isValid = true;
 
-    if (!state.cpu || state.cpu.trim() === '') {
+    if (!state.cpu || state.cpu === '') {
       newErrors.cpu = 'CPU告警阈值不能为空';
       isValid = false;
     } else {
@@ -120,7 +120,7 @@ const AlertManagement = () => {
       }
     }
 
-    if (!state.memory || state.memory.trim() === '') {
+    if (!state.memory || state.memory === '') {
       newErrors.memory = '内存告警阈值不能为空';
       isValid = false;
     } else {
