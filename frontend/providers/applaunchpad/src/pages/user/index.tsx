@@ -325,9 +325,6 @@ const AppList = ({
                   width={300}
                   mr={4}
                   value={roleId}
-                  {...register(`roleId`, {
-                    required: '请输入'
-                  })}
                   onChange={(e) => {
                     setRoleId(e.target.value)
                   }}
@@ -342,7 +339,7 @@ const AppList = ({
             </FormControl>
           </ModalBody>
           <ModalFooter>
-            <Button colorScheme="blue" mr={3} onClick={handleSubmit(onConfirm)}>
+            <Button colorScheme="blue" mr={3} onClick={onConfirm}>
               确认
             </Button>
           </ModalFooter>
