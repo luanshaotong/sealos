@@ -200,9 +200,9 @@ const AppList = ({
         render: (item: any) => <Box>{dayjs(item.created).format('YYYY-MM-DD HH:mm:ss')}</Box>
       },
       {
-        title: '大小',
+        title: '大小（Mb）',
         key: 'size',
-        render: (item: any) => <Box>{item.size}</Box>
+        render: (item: any) => <Box>{(item.size / 416500).toFixed(1)}</Box>
       },
       {
         title: '用途',
@@ -637,33 +637,35 @@ const AppList = ({
           <ModalHeader>构建镜像</ModalHeader>
           <ModalCloseButton />
           <ModalBody>
-            <Flex alignItems={'center'} gap={'12px'}>
-              <Flex alignItems={'center'} w={'100px'}>
-                基础镜像: <span style={{ color: 'red' }}>✳</span>
-              </Flex>
-              <Select
-                w={'300px'}
-                errorBorderColor="red.300"
-                borderColor={'#02A7F0'}
-                isInvalid={constructError.constructImage !== ''}
-                _hover={{ borderColor: '#02A7F0' }}
-                value={constructImage}
-                onChange={
-                  (e) => {
-                    setConstructImage(e.target.value);
-                    getImageList(e.target.value)
-                    setError((prev) => ({ ...prev, constructImage: '' }));
-                  }
-                }
-              >
-                <option value="">请选择</option>
-                {(data?.items || []).map((item: any) => (
-                  <option key={item.created} value={item.image}>
-                    {item.image}
-                  </option>
-                ))}
-              </Select>
-            </Flex>
+  <Flex alignItems={'center'} gap={'12px'}>
+    <Flex alignItems={'center'} w={'100px'}>
+      基础镜像: <span style={{ color: 'red' }}>✳</span>
+    </Flex>
+    <Select
+      w={'300px'}
+      errorBorderColor="red.300"
+      borderColor={'#02A7F0'}
+      isInvalid={constructError.constructImage !== ''}
+      _hover={{ borderColor: '#02A7F0' }}
+      value={constructImage}
+      onChange={
+        (e) => {
+          setConstructImage(e.target.value);
+          getImageList(e.target.value)
+          setError((prev) => ({ ...prev, constructImage: '' }));
+        }
+      }
+    >
+      <option value="">请选择</option>
+      {(data?.items || [])
+        .sort((a, b) => a.image.localeCompare(b.image))  // 添加排序
+        .map((item: any) => (
+          <option key={item.created} value={item.image}>
+            {item.image}
+          </option>
+        ))}
+    </Select>
+  </Flex>
             <Flex alignItems={'center'} mt={'12px'} gap={'12px'}>
               <Flex alignItems={'center'} w={'100px'}>
                 基础镜像版本: <span style={{ color: 'red' }}>✳</span>

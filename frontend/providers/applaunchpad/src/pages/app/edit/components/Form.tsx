@@ -202,6 +202,7 @@ const Networks = ({
                   type={'number'}
                   w={'110px'}
                   onInput={(e:any) => {
+                    e.target.value = e.target.value.replace(/[^0-9]/g, '');
                     if (e.target.value.length > 5) {
                       e.target.value = e.target.value.slice(0, 5);
                     }
@@ -297,6 +298,7 @@ const Networks = ({
                       h={'32px'}
                       type={'number'}
                       onInput={(e:any) => {
+                        e.target.value = e.target.value.replace(/[^0-9]/g, '');
                         if (e.target.value.length > 5) {
                           e.target.value = e.target.value.slice(0, 5);
                         }
