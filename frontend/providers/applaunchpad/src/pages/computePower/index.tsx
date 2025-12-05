@@ -494,8 +494,9 @@ const AppList = ({
             <FormControl mb={7} isInvalid={errors.core_api ? true : false} w={'100%'}>
               <Flex alignItems={'center'} mb={5}>
                 <Label>{"核心API"}</Label>
+                <Box width={'60%'}>
                 <Input
-                  width={'60%'}
+                  width={'100%'}
                   autoFocus={true}
                   style={{borderColor:errors.core_api ? 'red' : '#02A7F0'}}
                   maxLength={60}
@@ -510,6 +511,12 @@ const AppList = ({
                     })
                   }}
                 />
+                {errors.core_api && (
+                    <Box color="red.500" fontSize="sm" mt={1}>
+                      {String(errors.core_api.message || '')}
+                    </Box>
+                  )}
+                  </Box>
               </Flex>
             </FormControl>
             <FormControl mb={7} isInvalid={errors.port ? true : false} w={'100%'}>
@@ -606,8 +613,9 @@ const AppList = ({
             <FormControl mb={7} w={'100%'}>
               <Flex alignItems={'center'} mb={5}>
                 <Label>{"最大延迟"}</Label>
+                <Box width={'60%'}>
                 <Input
-                  width={'60%'}
+                  width={'100%'}
                   autoFocus={true}
                   maxLength={4}
                   onInput={(e:any) => {
@@ -615,7 +623,11 @@ const AppList = ({
                   }}
                   style={{borderColor:errors.max_latency ? 'red' : '#02A7F0'}}
                   {...register(`max_latency`, {
-                    required: '请输入'
+                    required: '请输入最大延迟',
+                    min: {
+                        value: 1,
+                        message: '最大延迟最小值为1'
+                    }
                   })}
                   value={nodeModel.max_latency}
                   onChange={e => {
@@ -625,6 +637,12 @@ const AppList = ({
                     })
                   }}
                 />
+                {errors.max_latency && (
+                    <Box color="red.500" fontSize="sm" mt={1}>
+                      {String(errors.max_latency.message || '')}
+                    </Box>
+                  )}
+                  </Box>
               </Flex>
             </FormControl>
             <FormControl mb={7} w={'100%'}>
