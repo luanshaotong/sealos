@@ -31,6 +31,7 @@ export const defaultEditVal: AppEditType = {
   currentContainerName: 'hello-world',
   modelName: '',
   priority: '1',
+  nodePortLocal: false,
   containers: [
     {
       name: 'container1',

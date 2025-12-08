@@ -70,6 +70,7 @@ export interface AppEditType {
   preInspection: string;
   priority: string;
   replicas: number | '';
+  nodePortLocal: boolean;
   gpu?: GpuType;
   hpa: {
     use: boolean;

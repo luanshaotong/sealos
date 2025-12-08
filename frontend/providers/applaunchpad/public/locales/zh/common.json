@@ -227,6 +227,8 @@
   "ConfigMap Tip": "配置文件",
   "No Data Available": "暂无数据",
   "Restart Success": "重启成功",
+  "NodePort Local Access": "NodePort本地访问",
+  "Use externalTrafficPolicy Local for NodePort service to avoid NAT": "为外网服务端口开启本地转发，避免IP转换。可能无法在部署节点外访问服务。",
   "ConfigMap Path Conflict": "ConfigMap 路径冲突",
   "Deploy Application": "部署应用",
   "Reboot Success": "重启成功",
