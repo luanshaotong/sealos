@@ -185,7 +185,7 @@ const Networks = ({
   return (
     <>
       <Flex alignItems={'center'} gap={3} mb={4}>
-        <Label w={labelWidth}>{t('NodePort Local Access')}</Label>
+        <Label w={labelWidth}>本地访问</Label>
         <Switch
           size={'lg'}
           colorScheme={'blackAlpha'}
@@ -196,7 +196,7 @@ const Networks = ({
           ml={2}
           icon={<InfoOutlineIcon />}
           size="sm"
-          text={t('Use externalTrafficPolicy Local for NodePort service to avoid NAT')}
+          text="为外网服务端口开启本地转发，避免IP转换。"
         />
       </Flex>
       <Flex alignItems={'flex-start'}>
