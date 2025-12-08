@@ -246,6 +246,10 @@ export const adaptAppDetail = (configs: DeployKindsType[]): AppDetailType => {
     }
   });
 
+  const nodePortService = configs.find(
+    (item) => item.kind === YamlKindEnum.Service && (item as V1Service).spec?.type === 'NodePort'
+  ) as V1Service | undefined;
+
   const deployKindsMap: {
     [YamlKindEnum.StatefulSet]?: V1StatefulSet;
     [YamlKindEnum.Deployment]?: V1Deployment;
@@ -358,6 +362,7 @@ export const adaptAppDetail = (configs: DeployKindsType[]): AppDetailType => {
     replicas: appDeploy.spec?.replicas || 0,
     currentContainerName: containers[0].name,
     containers: containers,
+    nodePortLocal: nodePortService?.spec?.externalTrafficPolicy === 'Local',
     // runCMD: appDeploy.spec?.template?.spec?.containers?.[0]?.command?.join(' ') || '',
     // cmdParam:
     //   (appDeploy.spec?.template?.spec?.containers?.[0]?.args?.length === 1
@@ -477,6 +482,7 @@ export const adaptEditAppData = (app: AppDetailType): AppEditType => {
     'configMapList',
     'storeList',
     'gpu',
+    'nodePortLocal',
     'nodeName',
     'preInspection',
     'priority',

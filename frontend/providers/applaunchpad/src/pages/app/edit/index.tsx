@@ -28,7 +28,7 @@ import { useTranslation } from 'next-i18next';
 import dynamic from 'next/dynamic';
 import { useRouter } from 'next/router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useForm } from 'react-hook-form';
+import { FieldErrors, useForm } from 'react-hook-form';
 import Form from './components/Form';
 import Header from './components/Header';
 import Yaml from './components/Yaml';
@@ -239,23 +239,27 @@ const EditApp = ({
       refetchPrice
     ]
   );
-  const submitError = useCallback(() => {
-    // deep search message
-    const deepSearch = (obj: any): string => {
-      if (!obj || typeof obj !== 'object') return t('Submit Error');
-      if (!!obj.message) {
-        return obj.message;
-      }
-      return deepSearch(Object.values(obj)[0]);
-    };
-    toast({
-      title: deepSearch(formHook.formState.errors),
-      status: 'error',
-      position: 'top',
-      duration: 3000,
-      isClosable: true
-    });
-  }, [formHook.formState.errors, t, toast]);
+  const submitError = useCallback(
+    (errors?: FieldErrors<AppEditType>) => {
+      // deep search message on current error object
+      const deepSearch = (obj: any): string => {
+        if (!obj || typeof obj !== 'object') return t('Submit Error');
+        if (!!obj.message) {
+          return obj.message;
+        }
+        return deepSearch(Object.values(obj)[0]);
+      };
+      const errorSource = errors && Object.keys(errors).length ? errors : formHook.formState.errors;
+      toast({
+        title: deepSearch(errorSource),
+        status: 'error',
+        position: 'top',
+        duration: 3000,
+        isClosable: true
+      });
+    },
+    [formHook.formState.errors, t, toast]
+  );
 
   // test
   // useEffect(() => {

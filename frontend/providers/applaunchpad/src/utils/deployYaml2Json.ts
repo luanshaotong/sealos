@@ -297,6 +297,11 @@ export const json2Service = (data: AppEditType, selectorName?: string) => {
     },
     spec: {
       type: 'NodePort',
+      ...(data.nodePortLocal
+        ? {
+            externalTrafficPolicy: 'Local'
+          }
+        : {}),
       ports: openPublicPorts,
       selector: {
         app: selectorName ?? data.appName

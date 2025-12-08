@@ -165,6 +165,7 @@ const Networks = ({
     control,
     setValue,
     getValues,
+    watch,
     formState: { errors }
   } = formHook;
   const {
@@ -179,9 +180,25 @@ const Networks = ({
   const { t } = useTranslation();
   const theme = useTheme();
   const [customAccessModalData, setCustomAccessModalData] = useState<CustomAccessModalParams>();
+  const nodePortLocal = watch('nodePortLocal');
 
   return (
     <>
+      <Flex alignItems={'center'} gap={3} mb={4}>
+        <Label w={labelWidth}>{t('NodePort Local Access')}</Label>
+        <Switch
+          size={'lg'}
+          colorScheme={'blackAlpha'}
+          isChecked={!!nodePortLocal}
+          onChange={(e) => setValue('nodePortLocal', e.target.checked)}
+        />
+        <Tip
+          ml={2}
+          icon={<InfoOutlineIcon />}
+          size="sm"
+          text={t('Use externalTrafficPolicy Local for NodePort service to avoid NAT')}
+        />
+      </Flex>
       <Flex alignItems={'flex-start'}>
         <Label>{t('Network Configuration')}</Label>
         <Box userSelect={'none'}>
@@ -467,6 +484,7 @@ const Form = ({
   const [configEdit, setConfigEdit] = useState<ConfigMapType>();
   const [storeEdit, setStoreEdit] = useState<StoreType>();
   const { isOpen: isEditEnvs, onOpen: onOpenEditEnvs, onClose: onCloseEditEnvs } = useDisclosure();
+  const nodePortLocal = watch('nodePortLocal');
 
   // listen scroll and set activeNav
   useEffect(() => {

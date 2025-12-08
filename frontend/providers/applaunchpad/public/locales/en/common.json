@@ -185,6 +185,8 @@
   "ConfigMap Tip": "ConfigMap",
   "No Data Available": "No Data",
   "Restart Success": "Restart Success",
+  "NodePort Local Access": "NodePort Local Access",
+  "Use externalTrafficPolicy Local for NodePort service to avoid NAT": "Use externalTrafficPolicy Local for NodePort service to avoid NAT",
   "Total": "Total",
   "Copy": "Copy",
   "Open Link": "Open Link",
