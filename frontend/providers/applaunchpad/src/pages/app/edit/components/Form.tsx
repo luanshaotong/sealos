@@ -1475,19 +1475,19 @@ const Form = ({
                             <Box flex={1}>
                               <Input
                                 w={'350px'}
-                                maxLength={200}
+                                // maxLength={200}
                                 // bg={
                                 //   getValues(`containers.${containerIndex}.runCMD`)
                                 //     ? 'myWhite.500'
                                 //     : 'grayModern.100'
                                 // }
                                 placeholder={`${t('Such as')} /bin/bash -c`}
-                                {...register(`containers.${containerIndex}.runCMD`, {
-                                  maxLength: {
-                                    value: 200,
-                                    message: t('Run command cannot exceed 200 characters') || 'Run command cannot exceed 200 characters'
-                                  }
-                                })}
+                                // {...register(`containers.${containerIndex}.runCMD`, {
+                                //   maxLength: {
+                                //     value: 200,
+                                //     message: t('Run command cannot exceed 200 characters') || 'Run command cannot exceed 200 characters'
+                                //   }
+                                // })}
                               />
                               {errors?.containers?.[containerIndex]?.runCMD && (
                                 <Box color="red.500" fontSize="sm" mt={1}>
@@ -1503,19 +1503,19 @@ const Form = ({
                             <Box flex={1}>
                               <Input
                                 w={'350px'}
-                                maxLength={200}
+                                // maxLength={200}
                                 // bg={
                                 //   getValues(`containers.${containerIndex}.cmdParam`)
                                 //     ? 'myWhite.500'
                                 //     : 'grayModern.100'
                                 // }
                                 placeholder={`${t('Such as')} sleep 10 && /entrypoint.sh db createdb`}
-                                {...register(`containers.${containerIndex}.cmdParam`, {
-                                  maxLength: {
-                                    value: 200,
-                                    message: t('Command parameters cannot exceed 200 characters') || 'Command parameters cannot exceed 200 characters'
-                                  }
-                                })}
+                                // {...register(`containers.${containerIndex}.cmdParam`, {
+                                //   maxLength: {
+                                //     value: 200,
+                                //     message: t('Command parameters cannot exceed 200 characters') || 'Command parameters cannot exceed 200 characters'
+                                //   }
+                                // })}
                               />
                               {errors?.containers?.[containerIndex]?.cmdParam && (
                                 <Box color="red.500" fontSize="sm" mt={1}>
