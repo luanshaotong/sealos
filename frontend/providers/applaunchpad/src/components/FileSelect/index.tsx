@@ -90,7 +90,7 @@ const FileSelect = ({ fileExtension, setFiles, multiple = false, files, ...props
         <input
           ref={SelectFileDom}
           type="file"
-          accept=".zip,application/zip,application/x-zip,application/x-zip-compressed"
+          accept=".zip,application/zip,application/x-zip,application/x-zip-compressed,.tar"
           multiple={multiple}
           onChange={(e) => {
             if (!e.target.files || e.target.files?.length === 0) return;
@@ -104,7 +104,7 @@ const FileSelect = ({ fileExtension, setFiles, multiple = false, files, ...props
             // 检查文件类型限制 (只允许zip文件)
             const allowedTypes = ['application/zip', 'application/x-zip', 'application/x-zip-compressed'];
             const invalidTypeFiles = Array.from(e.target.files).filter(file => {
-              const isZipExtension = file.name.toLowerCase().endsWith('.zip');
+              const isZipExtension = file.name.toLowerCase().endsWith('.zip') || file.name.toLowerCase().endsWith('.tar');
               const isZipMimeType = allowedTypes.includes(file.type);
               return !isZipExtension && !isZipMimeType;
             });
