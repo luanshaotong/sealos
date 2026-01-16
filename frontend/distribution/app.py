@@ -59,6 +59,10 @@ default_cluster_name = 'default'
 
 export_app_queue = []
 
+# 用于跟踪正在执行的导出任务
+export_app_locks = {}
+export_app_locks_mutex = threading.Lock()
+
 # 辅助函数：执行shell命令
 def run_command(command):
     try:
@@ -126,74 +130,90 @@ def export_apps():
     
 def export_app_helper(yaml_content, images, appname, namespace):
     """导出应用程序"""
-    pre_inspection = ''
-    print('exportApp, appname:', appname, 'namespace:', namespace, flush=True)
-
-    temp_uuid = str(int(time.time() * 1000))
-    workdir = os.path.join(SAVE_PATH, namespace, appname + '-' + temp_uuid)
+    # 生成锁的key
+    lock_key = f"{namespace}/{appname}"
     
-    if os.path.exists(workdir):
-        os.system('rm -rf ' + workdir)
-    os.makedirs(workdir)
-
-    new_yaml_content = []
-    for single_yaml in yaml.safe_load_all(yaml_content):
-        if single_yaml.get('kind') == 'Deployment' or single_yaml.get('kind') == 'StatefulSet':
-            # 去除指定节点的信息
-            if 'nodeName' in single_yaml.get('spec', {}).get('template', {}).get('spec', {}):
-                del single_yaml['spec']['template']['spec']['nodeName']
-            if 'cloud.sealos.io/pre-inspection' in single_yaml.get('metadata',{}).get('annotations',{}):
-                pre_inspection = single_yaml['metadata']['annotations']['cloud.sealos.io/pre-inspection']
-    # 保存yaml文件至本地
-    print('write yaml file to:', os.path.join(workdir, 'app.yaml'), flush=True)
-    with open(os.path.join(workdir, 'app.yaml'), 'w') as file:
-        file.write(yaml_content)
-
-    # 检索yaml中的所有nodeport端口和对应的内部port
-    nodeports = []
-    for single_yaml in yaml.safe_load_all(yaml_content):
-        if 'kind' in single_yaml and single_yaml['kind'] == 'Service':
-            if 'spec' in single_yaml and 'type' in single_yaml['spec'] and single_yaml['spec']['type'] == 'NodePort':
-                for port_index in range(len(single_yaml['spec']['ports'])):
-                    nodeports.append({'internal_port': str(single_yaml['spec']['ports'][port_index]['port']), 'external_port': str(single_yaml['spec']['ports'][port_index]['nodePort'])})
-    print('nodeports:', nodeports, flush=True)
-
-    image_pairs = []
+    # 检查是否已经有相同namespace/appname的导出任务在执行
+    with export_app_locks_mutex:
+        if lock_key in export_app_locks:
+            print(f'exportApp already in progress, appname: {appname}, namespace: {namespace}', flush=True)
+            return jsonify({'error': f'Export for {namespace}/{appname} is already in progress'}), 409
+        # 标记为正在执行
+        export_app_locks[lock_key] = True
     
-    # 登录镜像仓库
-    print('login to registry', flush=True)
-    err = run_command('docker login -u admin -p passw0rd sealos.hub:5000')
-    if err:
-        return jsonify({'error': 'Failed to login, ' + err}), 500
-    
-    # 拉取镜像并保存到本地
-    for image in images:
-        name = image['name'].strip()
-        print('pull image:', name, flush=True)
-        image_file_name = name.replace('/', '_').replace(':', '_') + '.tar'
-        path = os.path.join(workdir, image_file_name)
-        image_pairs.append({'name': name, 'path': path})
-        err = run_command('docker pull ' + name)
+    try:
+        pre_inspection = ''
+        print('exportApp, appname:', appname, 'namespace:', namespace, flush=True)
+
+        temp_uuid = str(int(time.time() * 1000))
+        workdir = os.path.join(SAVE_PATH, namespace, appname + '-' + temp_uuid)
+        
+        if os.path.exists(workdir):
+            os.system('rm -rf ' + workdir)
+        os.makedirs(workdir)
+
+        new_yaml_content = []
+        for single_yaml in yaml.safe_load_all(yaml_content):
+            if single_yaml.get('kind') == 'Deployment' or single_yaml.get('kind') == 'StatefulSet':
+                # 去除指定节点的信息
+                if 'nodeName' in single_yaml.get('spec', {}).get('template', {}).get('spec', {}):
+                    del single_yaml['spec']['template']['spec']['nodeName']
+                if 'cloud.sealos.io/pre-inspection' in single_yaml.get('metadata',{}).get('annotations',{}):
+                    pre_inspection = single_yaml['metadata']['annotations']['cloud.sealos.io/pre-inspection']
+        # 保存yaml文件至本地
+        print('write yaml file to:', os.path.join(workdir, 'app.yaml'), flush=True)
+        with open(os.path.join(workdir, 'app.yaml'), 'w') as file:
+            file.write(yaml_content)
+
+        # 检索yaml中的所有nodeport端口和对应的内部port
+        nodeports = []
+        for single_yaml in yaml.safe_load_all(yaml_content):
+            if 'kind' in single_yaml and single_yaml['kind'] == 'Service':
+                if 'spec' in single_yaml and 'type' in single_yaml['spec'] and single_yaml['spec']['type'] == 'NodePort':
+                    for port_index in range(len(single_yaml['spec']['ports'])):
+                        nodeports.append({'internal_port': str(single_yaml['spec']['ports'][port_index]['port']), 'external_port': str(single_yaml['spec']['ports'][port_index]['nodePort'])})
+        print('nodeports:', nodeports, flush=True)
+
+        image_pairs = []
+        
+        # 登录镜像仓库
+        print('login to registry', flush=True)
+        err = run_command('docker login -u admin -p passw0rd sealos.hub:5000')
         if err:
-            return jsonify({'error': 'Failed to pull image, ' + err}), 500
-        print('save image:', name, flush=True)
-        err = run_command('docker save ' + name + ' -o ' + path)
-        if err:
-            return jsonify({'error': 'Failed to save image, ' + err}), 500
-    
-    # 保存元数据信息
-    metadata = {
-        'name': appname,
-        'namespace': namespace,
-        'images': image_pairs,
-        'preInspection': pre_inspection,
-        'nodeports': nodeports
-    }
-    with open(os.path.join(workdir, 'metadata.json'), 'w') as file:
-        file.write(json.dumps(metadata))
-    
-    # 返回成功响应
-    return jsonify({'message': 'Application exported successfully', 'path': workdir, 'url': 'http://' + CLUSTER_DOMAIN + ':5002/api/downloadApp?appname=' + appname + '&namespace=' + namespace + '&uuid=' + temp_uuid}), 200
+            return jsonify({'error': 'Failed to login, ' + err}), 500
+        
+        # 拉取镜像并保存到本地
+        for image in images:
+            name = image['name'].strip()
+            print('pull image:', name, flush=True)
+            image_file_name = name.replace('/', '_').replace(':', '_') + '.tar'
+            path = os.path.join(workdir, image_file_name)
+            image_pairs.append({'name': name, 'path': path})
+            err = run_command('docker pull ' + name)
+            if err:
+                return jsonify({'error': 'Failed to pull image, ' + err}), 500
+            print('save image:', name, flush=True)
+            err = run_command('docker save ' + name + ' -o ' + path)
+            if err:
+                return jsonify({'error': 'Failed to save image, ' + err}), 500
+        # 保存元数据信息
+        metadata = {
+            'name': appname,
+            'namespace': namespace,
+            'images': image_pairs,
+            'preInspection': pre_inspection,
+            'nodeports': nodeports
+        }
+        with open(os.path.join(workdir, 'metadata.json'), 'w') as file:
+            file.write(json.dumps(metadata))
+        
+        # 返回成功响应
+        return jsonify({'message': 'Application exported successfully', 'path': workdir, 'url': 'http://' + CLUSTER_DOMAIN + ':5002/api/downloadApp?appname=' + appname + '&namespace=' + namespace + '&uuid=' + temp_uuid}), 200
+    finally:
+        # 释放锁
+        with export_app_locks_mutex:
+            if lock_key in export_app_locks:
+                del export_app_locks[lock_key]
 
 # API端点：打包并下载应用程序
 @app.route('/api/downloadApp', methods=['GET'])
