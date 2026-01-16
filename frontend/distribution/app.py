@@ -137,7 +137,7 @@ def export_app_helper(yaml_content, images, appname, namespace):
     with export_app_locks_mutex:
         if lock_key in export_app_locks:
             print(f'exportApp already in progress, appname: {appname}, namespace: {namespace}', flush=True)
-            return jsonify({'error': f'Export for {namespace}/{appname} is already in progress'}), 409
+            return jsonify({'error': f'应用 {namespace}/{appname} 正在导出中，请稍后再试'}), 409
         # 标记为正在执行
         export_app_locks[lock_key] = True
     
