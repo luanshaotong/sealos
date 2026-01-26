@@ -80,7 +80,7 @@ const EditEnvs = ({
           <Textarea
             h={'350px'}
             maxH={'100%'}
-            maxLength={500}
+            // maxLength={500}
             value={inputVal}
             resize={'both'}
             placeholder={t('Env Placeholder') || ''}
@@ -88,7 +88,7 @@ const EditEnvs = ({
             whiteSpace={inputVal === '' ? 'pre-wrap' : 'nowrap'}
             onChange={(e) => {
               setInputVal(e.target.value);
-              setShowLengthWarning(e.target.value.length >= 500);
+              // setShowLengthWarning(e.target.value.length >= 500);
             }}
           />
           {showLengthWarning && (
