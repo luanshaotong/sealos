@@ -19,6 +19,21 @@ if [ -z $dc ]; then
     chmod +x /usr/local/bin/docker-compose
 fi
 
+cp etcdctl etcdutl /usr/local/bin/
+chmod +x /usr/local/bin/etcdctl /usr/local/bin/etcdutl
+
+mkdir -p /etc/etcd-backup
+rm -rf /etc/etcd-backup/*
+cp -r etcd-backup/* /etc/etcd-backup/
+chmod +x /etc/etcd-backup/*.sh
+
+cat >/etc/cron.d/etcd-backup <<'EOF'
+SHELL=/bin/bash
+PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+5 */2 * * * root /etc/etcd-backup/etcd-backup.sh >> /var/log/etcd-backup.log 2>&1
+EOF
+chmod 644 /etc/cron.d/etcd-backup
+
 if [ -f /etc/systemd/system/deployapp.service ]; then
     systemctl stop deployapp
     systemctl disable deployapp
