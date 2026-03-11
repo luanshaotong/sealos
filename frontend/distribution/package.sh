@@ -30,6 +30,29 @@ if [ ! -f docker-compose-bin ]; then
     chmod +x docker-compose-bin
 fi
 
+ETCD_VERSION="v3.5.12"
+if [ "$arch" == "aarch64" ]; then
+    ETCD_ARCH="arm64"
+elif [ "$arch" == "x86_64" ]; then
+    ETCD_ARCH="amd64"
+else
+    echo "unsupported architecture: ${arch}"
+    exit 1
+fi
+
+tmp_dir=$(mktemp -d)
+trap 'rm -rf "${tmp_dir}"' EXIT
+
+ETCD_URL="https://github.com/etcd-io/etcd/releases/download/${ETCD_VERSION}/etcd-${ETCD_VERSION}-linux-${ETCD_ARCH}.tar.gz"
+wget "${ETCD_URL}" -O "${tmp_dir}/etcd.tar.gz"
+tar -xzf "${tmp_dir}/etcd.tar.gz" -C "${tmp_dir}"
+cp "${tmp_dir}/etcd-${ETCD_VERSION}-linux-${ETCD_ARCH}/etcdctl" "${tmp_dir}/etcd-${ETCD_VERSION}-linux-${ETCD_ARCH}/etcdutl" dist/
+chmod +x dist/etcdctl dist/etcdutl
+cp -r etcd-backup dist/
+cp add_iptables.sh dist/sealos_add_iptables.sh
+cp del_iptables.sh dist/sealos_del_iptables.sh
+chmod +x dist/sealos_add_iptables.sh dist/sealos_del_iptables.sh
+
 cp install.sh originlaunchpad.yaml docker-compose-bin dist/
 cp app.py node.py stress_test.py scheduling.py record_events.py menu.py bandwidth_autoscaler.py docker-compose.yml dist/deployapp/
 rm -f originlaunchpad.yaml install.sh docker-compose.yml

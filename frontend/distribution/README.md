@@ -56,6 +56,56 @@ response = requests.post(f'{flask_app_url}', json=data)
 ```
 nodeports是从yaml中解析出来的，用于在部署时更换端口
 
+1.5 /api/exportAppLight
+轻量导出已部署应用，只生成 yaml 文件和 metadata.json，不导出镜像。
+
+请求方式：GET
+
+参数：
+- namespace
+- appname
+
+示例：
+
+```
+import requests
+
+namespace = 'ns-admin'
+appname = 'test'
+
+flask_app_url = 'http://localhost:5002/api/exportAppLight?namespace={namespace}&&appname={appname}'
+response = requests.get(f'{flask_app_url}')
+```
+
+接口会根据应用标签从集群中收集资源，生成的制品包中仅包含：
+- app.yaml
+- metadata.json
+
+1.6 /api/exportAppLightDownload
+轻量导出并直接下载压缩包，返回 zip 文件，压缩包中仅包含 app.yaml 和 metadata.json。
+
+请求方式：GET
+
+参数：
+- namespace
+- appname
+
+示例：
+
+```
+import requests
+
+namespace = 'ns-admin'
+appname = 'test'
+
+flask_app_url = 'http://localhost:5002/api/exportAppLightDownload?namespace={namespace}&&appname={appname}'
+response = requests.get(f'{flask_app_url}')
+
+if response.status_code == 200:
+    with open(appname + '-light.zip', 'wb') as f:
+        f.write(response.content)
+```
+
 2. /api/downloadApp
 流式下载模型
 
