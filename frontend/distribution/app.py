@@ -252,6 +252,35 @@ def prepare_export_workdir(namespace, appname, temp_uuid):
     os.makedirs(workdir)
     return workdir
 
+def build_download_response(workdir, zip_path, filename):
+    shutil.make_archive(base_name=os.path.splitext(zip_path)[0], format='zip', root_dir=workdir)
+
+    def generate():
+        with open(zip_path, 'rb') as file:
+            while True:
+                data = file.read(1024)
+                if not data:
+                    break
+                yield data
+
+    response = Response(generate(), content_type='application/zip')
+    response.headers['Content-Disposition'] = 'attachment; filename=' + filename
+    return response
+
+def create_light_export_files(appname, namespace):
+    yaml_content, err = get_exportable_app_yaml(namespace, appname)
+    if err:
+        return None, None, err
+
+    temp_uuid = str(int(time.time() * 1000))
+    workdir = prepare_export_workdir(namespace, appname, temp_uuid)
+
+    sanitized_yaml_content, metadata = build_export_bundle(yaml_content, appname, namespace)
+    print('nodeports:', metadata['nodeports'], flush=True)
+    write_export_bundle(workdir, sanitized_yaml_content, metadata)
+
+    return workdir, temp_uuid, None
+
 def upload_deploy_helper(file_path, namespace, appname, images):
 
     return deployAppWithImage(file_path, '', '', '', namespace, appname, images)
@@ -385,19 +414,47 @@ def export_app_light_helper(appname, namespace):
 
     try:
         print('exportAppLight, appname:', appname, 'namespace:', namespace, flush=True)
-        yaml_content, err = get_exportable_app_yaml(namespace, appname)
+        workdir, temp_uuid, err = create_light_export_files(appname, namespace)
         if err:
             status_code = 404 if err == 'Application resources not found' else 500
             return jsonify({'error': err}), status_code
 
-        temp_uuid = str(int(time.time() * 1000))
-        workdir = prepare_export_workdir(namespace, appname, temp_uuid)
-
-        sanitized_yaml_content, metadata = build_export_bundle(yaml_content, appname, namespace)
-        print('nodeports:', metadata['nodeports'], flush=True)
-        write_export_bundle(workdir, sanitized_yaml_content, metadata)
-
         return jsonify({'message': 'Application exported successfully', 'path': workdir, 'url': 'http://' + CLUSTER_DOMAIN + ':5002/api/downloadApp?appname=' + appname + '&namespace=' + namespace + '&uuid=' + temp_uuid}), 200
+    finally:
+        with export_app_locks_mutex:
+            if lock_key in export_app_locks:
+                del export_app_locks[lock_key]
+
+@app.route('/api/exportAppLightDownload', methods=['GET'])
+def export_app_light_download():
+    appname = request.args.get('appname')
+    if not appname:
+        return jsonify({'error': 'Appname is required'}), 400
+
+    namespace = request.args.get('namespace')
+    if not namespace:
+        return jsonify({'error': 'Namespace is required'}), 400
+
+    return export_app_light_download_helper(appname, namespace)
+
+def export_app_light_download_helper(appname, namespace):
+    lock_key = f"{namespace}/{appname}"
+
+    with export_app_locks_mutex:
+        if lock_key in export_app_locks:
+            print(f'exportAppLightDownload already in progress, appname: {appname}, namespace: {namespace}', flush=True)
+            return jsonify({'error': f'应用 {namespace}/{appname} 正在导出中，请稍后再试'}), 409
+        export_app_locks[lock_key] = True
+
+    try:
+        print('exportAppLightDownload, appname:', appname, 'namespace:', namespace, flush=True)
+        workdir, temp_uuid, err = create_light_export_files(appname, namespace)
+        if err:
+            status_code = 404 if err == 'Application resources not found' else 500
+            return jsonify({'error': err}), status_code
+
+        zip_path = os.path.join(SAVE_PATH, namespace, appname + '-' + temp_uuid + '.zip')
+        return build_download_response(workdir, zip_path, appname + '-light.zip')
     finally:
         with export_app_locks_mutex:
             if lock_key in export_app_locks:
@@ -423,20 +480,7 @@ def download_app():
     # 打包应用程序为zip文件
     workdir = os.path.join(SAVE_PATH, namespace, appname + '-' + uuid)
     zip_path = os.path.join(SAVE_PATH, namespace, appname + '-' + uuid + '.zip')
-    shutil.make_archive(base_name=os.path.splitext(zip_path)[0], format='zip', root_dir=workdir)
-
-    # 以流的形式返回文件
-    def generate():
-        with open(zip_path, 'rb') as file:
-            while True:
-                data = file.read(1024)
-                if not data:
-                    break
-                yield data
-
-    response = Response(generate(), content_type='application/zip')
-    response.headers['Content-Disposition'] = 'attachment; filename=' + appname + '.zip'
-    return response
+    return build_download_response(workdir, zip_path, appname + '.zip')
 
 # API端点：上传应用程序
 @app.route('/api/uploadApp', methods=['POST'])
