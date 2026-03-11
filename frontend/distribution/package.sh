@@ -49,6 +49,9 @@ tar -xzf "${tmp_dir}/etcd.tar.gz" -C "${tmp_dir}"
 cp "${tmp_dir}/etcd-${ETCD_VERSION}-linux-${ETCD_ARCH}/etcdctl" "${tmp_dir}/etcd-${ETCD_VERSION}-linux-${ETCD_ARCH}/etcdutl" dist/
 chmod +x dist/etcdctl dist/etcdutl
 cp -r etcd-backup dist/
+cp add_iptables.sh dist/sealos_add_iptables.sh
+cp del_iptables.sh dist/sealos_del_iptables.sh
+chmod +x dist/sealos_add_iptables.sh dist/sealos_del_iptables.sh
 
 cp install.sh originlaunchpad.yaml docker-compose-bin dist/
 cp app.py node.py stress_test.py scheduling.py record_events.py menu.py bandwidth_autoscaler.py docker-compose.yml dist/deployapp/

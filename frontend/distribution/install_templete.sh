@@ -22,6 +22,9 @@ fi
 cp etcdctl etcdutl /usr/local/bin/
 chmod +x /usr/local/bin/etcdctl /usr/local/bin/etcdutl
 
+cp sealos_add_iptables.sh sealos_del_iptables.sh /usr/local/bin/
+chmod +x /usr/local/bin/sealos_add_iptables.sh /usr/local/bin/sealos_del_iptables.sh
+
 mkdir -p /etc/etcd-backup
 rm -rf /etc/etcd-backup/*
 cp -r etcd-backup/* /etc/etcd-backup/
