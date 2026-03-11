@@ -4,8 +4,8 @@ BACKUP_DIR="/var/lib/etcd-backups"
 FILE_NAME="etcd-snap-$(date +%Y%m%d%H%M)"
 DB_PATH="${BACKUP_DIR}/${FILE_NAME}.db"
 TAR_PATH="${BACKUP_DIR}/${FILE_NAME}.tar.gz"
-RETENTION_DAYS=7
 DETAILED_KEEP_HOURS=24
+DAILY_KEEP_DAYS=7
 
 mkdir -p "${BACKUP_DIR}"
 
@@ -27,9 +27,10 @@ else
     exit 1
 fi
 
-# 3. 自动清理：保留 7 天；24 小时以上按天只保留 1 份
+# 3. 自动清理：24 小时内保留全部；7 天内按天保留；7 天前按周保留
 now_ts=$(date +%s)
 declare -A kept_daily
+declare -A kept_weekly
 
 for file in $(ls -1t "${BACKUP_DIR}"/etcd-snap-*.tar.gz 2>/dev/null); do
   base_name=$(basename "${file}")
@@ -44,17 +45,26 @@ for file in $(ls -1t "${BACKUP_DIR}"/etcd-snap-*.tar.gz 2>/dev/null); do
   fi
 
   age_sec=$((now_ts - file_ts))
-  if [ "${age_sec}" -gt $((RETENTION_DAYS * 24 * 3600)) ]; then
-    rm -f "${file}"
-    continue
-  fi
-
   if [ "${age_sec}" -gt $((DETAILED_KEEP_HOURS * 3600)) ]; then
-    day_key="${ts:0:8}"
-    if [ -n "${kept_daily[${day_key}]}" ]; then
+    if [ "${age_sec}" -le $((DAILY_KEEP_DAYS * 24 * 3600)) ]; then
+      day_key="${ts:0:8}"
+      if [ -n "${kept_daily[${day_key}]}" ]; then
+        rm -f "${file}"
+      else
+        kept_daily["${day_key}"]=1
+      fi
+      continue
+    fi
+
+    week_key=$(date -d "@${file_ts}" +%G%V 2>/dev/null)
+    if [ -z "${week_key}" ]; then
+      continue
+    fi
+
+    if [ -n "${kept_weekly[${week_key}]}" ]; then
       rm -f "${file}"
     else
-      kept_daily["${day_key}"]=1
+      kept_weekly["${week_key}"]=1
     fi
   fi
 done

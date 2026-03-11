@@ -3,6 +3,7 @@ from flask import Flask, request, jsonify, Response
 import subprocess
 import os
 import json
+import copy
 import yaml
 import time
 import shutil
@@ -71,6 +72,185 @@ def run_command(command):
     except subprocess.CalledProcessError as e:
         print("Error executing command: " + e.stderr.decode().strip())
         return e.stderr.decode().strip()
+
+def run_command_with_output(command):
+    try:
+        result = subprocess.run(command, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+        return result.stdout, None
+    except subprocess.CalledProcessError as e:
+        err = (e.stderr or e.stdout or '').strip()
+        print("Error executing command: " + err)
+        return None, err
+
+def sanitize_export_resource(resource):
+    sanitized = copy.deepcopy(resource)
+    sanitized.pop('status', None)
+
+    metadata = sanitized.get('metadata', {})
+    for field in ['creationTimestamp', 'resourceVersion', 'uid', 'managedFields', 'generation', 'selfLink']:
+        metadata.pop(field, None)
+    metadata.pop('ownerReferences', None)
+
+    annotations = metadata.get('annotations', {})
+    if isinstance(annotations, dict):
+        annotations.pop('kubectl.kubernetes.io/last-applied-configuration', None)
+        if not annotations:
+            metadata.pop('annotations', None)
+
+    kind = sanitized.get('kind')
+    spec = sanitized.get('spec', {})
+
+    if kind == 'Service':
+        cluster_ip = spec.get('clusterIP')
+        if cluster_ip != 'None':
+            spec.pop('clusterIP', None)
+            spec.pop('clusterIPs', None)
+        spec.pop('healthCheckNodePort', None)
+        spec.pop('ipFamilies', None)
+        spec.pop('ipFamilyPolicy', None)
+        spec.pop('internalTrafficPolicy', None)
+        spec.pop('sessionAffinityConfig', None)
+
+    if kind == 'PersistentVolumeClaim':
+        spec.pop('volumeName', None)
+
+    if kind == 'Deployment' or kind == 'StatefulSet':
+        template_metadata = spec.get('template', {}).get('metadata', {})
+        template_metadata.pop('creationTimestamp', None)
+
+    return sanitized
+
+def build_export_bundle(yaml_content, appname, namespace, image_pairs=None):
+    pre_inspection = ''
+    nodeports = []
+    sanitized_resources = []
+
+    for single_yaml in yaml.safe_load_all(yaml_content):
+        if not single_yaml:
+            continue
+
+        resource = sanitize_export_resource(single_yaml)
+        kind = resource.get('kind')
+
+        if kind == 'Deployment' or kind == 'StatefulSet':
+            pod_spec = resource.get('spec', {}).get('template', {}).get('spec', {})
+            if 'nodeName' in pod_spec:
+                del pod_spec['nodeName']
+            pre_inspection = resource.get('metadata', {}).get('annotations', {}).get('cloud.sealos.io/pre-inspection', pre_inspection)
+
+        if kind == 'Service':
+            service_spec = resource.get('spec', {})
+            if service_spec.get('type') == 'NodePort':
+                for port in service_spec.get('ports', []):
+                    nodeport = {'internal_port': str(port.get('port'))}
+                    if port.get('nodePort') is not None:
+                        nodeport['external_port'] = str(port.get('nodePort'))
+                    nodeports.append(nodeport)
+
+        sanitized_resources.append(resource)
+
+    sanitized_yaml_content = yaml.safe_dump_all(sanitized_resources, sort_keys=False)
+    metadata = {
+        'name': appname,
+        'namespace': namespace,
+        'images': image_pairs or [],
+        'preInspection': pre_inspection,
+        'nodeports': nodeports
+    }
+    return sanitized_yaml_content, metadata
+
+def list_labeled_app_resources(namespace, selector):
+    command = [
+        'kubectl',
+        'get',
+        'deployment,statefulset,service,ingress,configmap,secret,pvc,hpa,job,cronjob',
+        '-n',
+        namespace,
+        '-l',
+        selector,
+        '-o',
+        'yaml',
+        '--ignore-not-found',
+        '--kubeconfig=/etc/kubernetes/admin.conf'
+    ]
+    stdout, err = run_command_with_output(command)
+    if err:
+        return None, err
+
+    parsed = yaml.safe_load(stdout) or {}
+    return parsed.get('items', []), None
+
+def get_named_app_resources(namespace, appname):
+    resources = []
+    resource_types = ['deployment', 'statefulset', 'service', 'ingress', 'configmap', 'secret', 'pvc', 'hpa', 'job', 'cronjob']
+
+    for resource_type in resource_types:
+        command = [
+            'kubectl',
+            'get',
+            resource_type,
+            appname,
+            '-n',
+            namespace,
+            '-o',
+            'yaml',
+            '--ignore-not-found',
+            '--kubeconfig=/etc/kubernetes/admin.conf'
+        ]
+        stdout, err = run_command_with_output(command)
+        if err:
+            continue
+        parsed = yaml.safe_load(stdout) if stdout else None
+        if parsed and parsed.get('kind'):
+            resources.append(parsed)
+
+    return resources
+
+def get_exportable_app_yaml(namespace, appname):
+    resources = []
+    seen_resources = set()
+
+    for selector in [
+        'cloud.sealos.io/app-deploy-manager=' + appname,
+        'app=' + appname
+    ]:
+        items, err = list_labeled_app_resources(namespace, selector)
+        if err:
+            return None, err
+        for item in items:
+            key = (item.get('apiVersion'), item.get('kind'), item.get('metadata', {}).get('name'))
+            if key in seen_resources:
+                continue
+            seen_resources.add(key)
+            resources.append(item)
+
+    if not resources:
+        for item in get_named_app_resources(namespace, appname):
+            key = (item.get('apiVersion'), item.get('kind'), item.get('metadata', {}).get('name'))
+            if key in seen_resources:
+                continue
+            seen_resources.add(key)
+            resources.append(item)
+
+    if not resources:
+        return None, 'Application resources not found'
+
+    return yaml.safe_dump_all(resources, sort_keys=False), None
+
+def write_export_bundle(workdir, yaml_content, metadata):
+    print('write yaml file to:', os.path.join(workdir, 'app.yaml'), flush=True)
+    with open(os.path.join(workdir, 'app.yaml'), 'w') as file:
+        file.write(yaml_content)
+
+    with open(os.path.join(workdir, 'metadata.json'), 'w') as file:
+        file.write(json.dumps(metadata))
+
+def prepare_export_workdir(namespace, appname, temp_uuid):
+    workdir = os.path.join(SAVE_PATH, namespace, appname + '-' + temp_uuid)
+    if os.path.exists(workdir):
+        shutil.rmtree(workdir)
+    os.makedirs(workdir)
+    return workdir
 
 def upload_deploy_helper(file_path, namespace, appname, images):
 
@@ -142,37 +322,10 @@ def export_app_helper(yaml_content, images, appname, namespace):
         export_app_locks[lock_key] = True
     
     try:
-        pre_inspection = ''
         print('exportApp, appname:', appname, 'namespace:', namespace, flush=True)
 
         temp_uuid = str(int(time.time() * 1000))
-        workdir = os.path.join(SAVE_PATH, namespace, appname + '-' + temp_uuid)
-        
-        if os.path.exists(workdir):
-            os.system('rm -rf ' + workdir)
-        os.makedirs(workdir)
-
-        new_yaml_content = []
-        for single_yaml in yaml.safe_load_all(yaml_content):
-            if single_yaml.get('kind') == 'Deployment' or single_yaml.get('kind') == 'StatefulSet':
-                # 去除指定节点的信息
-                if 'nodeName' in single_yaml.get('spec', {}).get('template', {}).get('spec', {}):
-                    del single_yaml['spec']['template']['spec']['nodeName']
-                if 'cloud.sealos.io/pre-inspection' in single_yaml.get('metadata',{}).get('annotations',{}):
-                    pre_inspection = single_yaml['metadata']['annotations']['cloud.sealos.io/pre-inspection']
-        # 保存yaml文件至本地
-        print('write yaml file to:', os.path.join(workdir, 'app.yaml'), flush=True)
-        with open(os.path.join(workdir, 'app.yaml'), 'w') as file:
-            file.write(yaml_content)
-
-        # 检索yaml中的所有nodeport端口和对应的内部port
-        nodeports = []
-        for single_yaml in yaml.safe_load_all(yaml_content):
-            if 'kind' in single_yaml and single_yaml['kind'] == 'Service':
-                if 'spec' in single_yaml and 'type' in single_yaml['spec'] and single_yaml['spec']['type'] == 'NodePort':
-                    for port_index in range(len(single_yaml['spec']['ports'])):
-                        nodeports.append({'internal_port': str(single_yaml['spec']['ports'][port_index]['port']), 'external_port': str(single_yaml['spec']['ports'][port_index]['nodePort'])})
-        print('nodeports:', nodeports, flush=True)
+        workdir = prepare_export_workdir(namespace, appname, temp_uuid)
 
         image_pairs = []
         
@@ -196,21 +349,56 @@ def export_app_helper(yaml_content, images, appname, namespace):
             err = run_command('docker save ' + name + ' -o ' + path)
             if err:
                 return jsonify({'error': 'Failed to save image, ' + err}), 500
-        # 保存元数据信息
-        metadata = {
-            'name': appname,
-            'namespace': namespace,
-            'images': image_pairs,
-            'preInspection': pre_inspection,
-            'nodeports': nodeports
-        }
-        with open(os.path.join(workdir, 'metadata.json'), 'w') as file:
-            file.write(json.dumps(metadata))
+
+        sanitized_yaml_content, metadata = build_export_bundle(yaml_content, appname, namespace, image_pairs)
+        print('nodeports:', metadata['nodeports'], flush=True)
+        write_export_bundle(workdir, sanitized_yaml_content, metadata)
         
         # 返回成功响应
         return jsonify({'message': 'Application exported successfully', 'path': workdir, 'url': 'http://' + CLUSTER_DOMAIN + ':5002/api/downloadApp?appname=' + appname + '&namespace=' + namespace + '&uuid=' + temp_uuid}), 200
     finally:
         # 释放锁
+        with export_app_locks_mutex:
+            if lock_key in export_app_locks:
+                del export_app_locks[lock_key]
+
+@app.route('/api/exportAppLight', methods=['GET'])
+def export_app_light():
+    appname = request.args.get('appname')
+    if not appname:
+        return jsonify({'error': 'Appname is required'}), 400
+
+    namespace = request.args.get('namespace')
+    if not namespace:
+        return jsonify({'error': 'Namespace is required'}), 400
+
+    return export_app_light_helper(appname, namespace)
+
+def export_app_light_helper(appname, namespace):
+    lock_key = f"{namespace}/{appname}"
+
+    with export_app_locks_mutex:
+        if lock_key in export_app_locks:
+            print(f'exportAppLight already in progress, appname: {appname}, namespace: {namespace}', flush=True)
+            return jsonify({'error': f'应用 {namespace}/{appname} 正在导出中，请稍后再试'}), 409
+        export_app_locks[lock_key] = True
+
+    try:
+        print('exportAppLight, appname:', appname, 'namespace:', namespace, flush=True)
+        yaml_content, err = get_exportable_app_yaml(namespace, appname)
+        if err:
+            status_code = 404 if err == 'Application resources not found' else 500
+            return jsonify({'error': err}), status_code
+
+        temp_uuid = str(int(time.time() * 1000))
+        workdir = prepare_export_workdir(namespace, appname, temp_uuid)
+
+        sanitized_yaml_content, metadata = build_export_bundle(yaml_content, appname, namespace)
+        print('nodeports:', metadata['nodeports'], flush=True)
+        write_export_bundle(workdir, sanitized_yaml_content, metadata)
+
+        return jsonify({'message': 'Application exported successfully', 'path': workdir, 'url': 'http://' + CLUSTER_DOMAIN + ':5002/api/downloadApp?appname=' + appname + '&namespace=' + namespace + '&uuid=' + temp_uuid}), 200
+    finally:
         with export_app_locks_mutex:
             if lock_key in export_app_locks:
                 del export_app_locks[lock_key]
