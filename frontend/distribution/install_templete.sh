@@ -6,11 +6,8 @@ docker load -i deployapp.tar
 docker tag luanshaotong/deployapp:LAUNCHPAD_TAG sealos.hub:5000/luanshaotong/deployapp:LAUNCHPAD_TAG
 docker push sealos.hub:5000/luanshaotong/deployapp:LAUNCHPAD_TAG
 
-DOMAIN=`grep sealos.hub /etc/hosts | awk '{print $1}'`
-DNS_FORWARD_IP=$(getent hosts sealos.hub 2>/dev/null | awk '{print $1; exit}')
-if [ -z "${DNS_FORWARD_IP}" ]; then
-    DNS_FORWARD_IP=${DOMAIN}
-fi
+DOMAIN=$(awk '$2=="sealos.hub" {print $1; exit}' /etc/hosts)
+DNS_FORWARD_IP=${DOMAIN}
 DNS_FORWARD_TARGET="${DNS_FORWARD_IP}:5053"
 cp originlaunchpad.yaml launchpad.yaml
 sed -i "s/FLAG_SEALOS_DOMAIN/${DOMAIN}/g" launchpad.yaml
