@@ -24,20 +24,16 @@ configure_coredns_forward() {
         return 1
     fi
 
-    if grep -q "forward \. ${DNS_FORWARD_TARGET}" "${tmp_corefile}"; then
+    if grep -Eq "^[[:space:]]*forward \. ${DNS_FORWARD_TARGET}( \{|$)" "${tmp_corefile}"; then
         echo "coredns already forwards to ${DNS_FORWARD_TARGET}"
         rm -f "${tmp_corefile}"
         return 0
     fi
 
-    if grep -q "forward \. /etc/resolv.conf {" "${tmp_corefile}"; then
-        sed -i "/forward \\. \/etc\/resolv\.conf {/,/}/{
-/forward \\. \/etc\/resolv\.conf {/c\\    forward . ${DNS_FORWARD_TARGET} {
-/max_concurrent/c\\       max_concurrent 1000
-/^    }$/c\\    }
-}" "${tmp_corefile}"
-    elif grep -q "forward \. /etc/resolv.conf" "${tmp_corefile}"; then
-        sed -i "s|forward \\. /etc/resolv.conf|forward . ${DNS_FORWARD_TARGET}|" "${tmp_corefile}"
+    if grep -Eq "^[[:space:]]*forward \. .+ \{$" "${tmp_corefile}"; then
+        sed -Ei "s|^([[:space:]]*)forward \. .+ \{$|\1forward . ${DNS_FORWARD_TARGET} {|" "${tmp_corefile}"
+    elif grep -Eq "^[[:space:]]*forward \. .+$" "${tmp_corefile}"; then
+        sed -Ei "s|^([[:space:]]*)forward \. .+$|\1forward . ${DNS_FORWARD_TARGET}|" "${tmp_corefile}"
     else
         echo "skip updating coredns configmap: unsupported Corefile forward format"
         rm -f "${tmp_corefile}"
