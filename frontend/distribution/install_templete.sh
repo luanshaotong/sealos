@@ -6,12 +6,46 @@ docker load -i deployapp.tar
 docker tag luanshaotong/deployapp:LAUNCHPAD_TAG sealos.hub:5000/luanshaotong/deployapp:LAUNCHPAD_TAG
 docker push sealos.hub:5000/luanshaotong/deployapp:LAUNCHPAD_TAG
 
-DOMAIN=`grep sealos.hub /etc/hosts | awk '{print $1}'`
+DOMAIN=$(awk '$2=="sealos.hub" {print $1; exit}' /etc/hosts)
+DNS_FORWARD_IP=${DOMAIN}
+DNS_FORWARD_TARGET="${DNS_FORWARD_IP}:5053"
 cp originlaunchpad.yaml launchpad.yaml
 sed -i "s/FLAG_SEALOS_DOMAIN/${DOMAIN}/g" launchpad.yaml
 KUBECONFIG=`base64 /etc/kubernetes/admin.conf | paste -s -d ''`
 sed -i "s/KUBECONFIGTEMPLATE/${KUBECONFIG}/g" launchpad.yaml
 kubectl apply -f launchpad.yaml
+
+configure_coredns_forward() {
+    tmp_corefile=$(mktemp)
+
+    if ! kubectl -n kube-system get configmap coredns -o jsonpath='{.data.Corefile}' > "${tmp_corefile}"; then
+        rm -f "${tmp_corefile}"
+        echo "skip updating coredns configmap: unable to fetch current Corefile"
+        return 1
+    fi
+
+    if grep -Eq "^[[:space:]]*forward \. ${DNS_FORWARD_TARGET}( \{|$)" "${tmp_corefile}"; then
+        echo "coredns already forwards to ${DNS_FORWARD_TARGET}"
+        rm -f "${tmp_corefile}"
+        return 0
+    fi
+
+    if grep -Eq "^[[:space:]]*forward \. .+ \{$" "${tmp_corefile}"; then
+        sed -Ei "s|^([[:space:]]*)forward \. .+ \{$|\1forward . ${DNS_FORWARD_TARGET} {|" "${tmp_corefile}"
+    elif grep -Eq "^[[:space:]]*forward \. .+$" "${tmp_corefile}"; then
+        sed -Ei "s|^([[:space:]]*)forward \. .+$|\1forward . ${DNS_FORWARD_TARGET}|" "${tmp_corefile}"
+    else
+        echo "skip updating coredns configmap: unsupported Corefile forward format"
+        rm -f "${tmp_corefile}"
+        return 1
+    fi
+
+    kubectl -n kube-system create configmap coredns --from-file=Corefile="${tmp_corefile}" --dry-run=client -o yaml | kubectl apply -f -
+    rm -f "${tmp_corefile}"
+
+    kubectl -n kube-system rollout restart deployment coredns
+    kubectl -n kube-system rollout status deployment coredns --timeout=120s
+}
 
 dc=`which docker-compose`
 if [ -z $dc ]; then
@@ -49,6 +83,7 @@ cp -r deployapp/* /usr/bin/deployapp/
 cd /usr/bin/deployapp
 sed -i "s/FLAG_SEALOS_DOMAIN/${DOMAIN}/g" docker-compose.yml
 docker-compose up -d
+configure_coredns_forward
 
 # cp origindeployapp.service deployapp.service
 # sed -i "s/FLAG_SEALOS_DOMAIN/${DOMAIN}/g" deployapp.service
