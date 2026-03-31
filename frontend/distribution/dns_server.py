@@ -2,7 +2,7 @@ import threading
 import struct
 import socket
 from concurrent import futures
-from custom_dns import get_all_dns_records, list_dns_rules
+from custom_dns import get_all_dns_records
 
 # DNS 记录类型编号
 QTYPE_A = 1
@@ -76,10 +76,8 @@ def parse_dns_query(data):
     return qid, questions
 
 
-def build_dns_response(qid, questions, answers):
-    flags = 0x8180  # QR=1, AA=1, RD=1, RA=1
-    if not answers:
-        flags = 0x8183  # NXDOMAIN
+def build_dns_response(qid, questions, answers, rcode=0):
+    flags = 0x8180 | (rcode & 0x000F)  # QR=1, AA=1, RD=1, RA=1
 
     header = struct.pack('!HHHHHH', qid, flags, len(questions), len(answers), 0, 0)
 
@@ -116,6 +114,60 @@ def encode_rdata(record_type, value):
     return b''
 
 
+def build_answer_record(name, record_type, value, ttl):
+    rdata = encode_rdata(record_type, value)
+    if not rdata:
+        return None
+    return {
+        'name': name,
+        'rtype': RTYPE_MAP[record_type],
+        'ttl': ttl,
+        'rdata': rdata,
+    }
+
+
+def resolve_records(all_records, qname, qtype, depth=0, seen=None):
+    if seen is None:
+        seen = set()
+
+    qname_lower = qname.lower()
+    if qname_lower in seen or depth > 8:
+        return [], False
+    seen.add(qname_lower)
+
+    domain_records = all_records.get(qname_lower, [])
+    if not domain_records:
+        return [], False
+
+    answers = []
+    type_name = RTYPE_REVERSE.get(qtype)
+
+    for rec in domain_records:
+        if type_name and rec['type'] == type_name:
+            answer = build_answer_record(qname, rec['type'], rec['value'], rec['ttl'])
+            if answer:
+                answers.append(answer)
+
+    cname_records = [rec for rec in domain_records if rec['type'] == 'CNAME']
+    if answers:
+        return answers, True
+
+    if cname_records:
+        for rec in cname_records:
+            answer = build_answer_record(qname, 'CNAME', rec['value'], rec['ttl'])
+            if answer:
+                answers.append(answer)
+
+            # 查询 A/AAAA/CNAME 时，继续补齐 CNAME 目标记录，避免客户端看到半成功半失败。
+            if qtype in (QTYPE_A, QTYPE_AAAA, QTYPE_CNAME):
+                chained_answers, _ = resolve_records(all_records, rec['value'], qtype, depth + 1, seen)
+                answers.extend(chained_answers)
+
+        return answers, True
+
+    return [], True
+
+
 # ==================== DNS UDP 服务器 ====================
 
 class DnsUdpServer:
@@ -129,37 +181,16 @@ class DnsUdpServer:
 
         all_records = get_all_dns_records()
         answers = []
+        has_existing_name = False
 
         for qname, qtype, qclass in questions:
-            qname_lower = qname.lower()
-            domain_records = all_records.get(qname_lower, [])
+            question_answers, found_name = resolve_records(all_records, qname, qtype)
+            if found_name:
+                has_existing_name = True
+            answers.extend(question_answers)
 
-            type_name = RTYPE_REVERSE.get(qtype)
-            for rec in domain_records:
-                if type_name and rec['type'] == type_name:
-                    rdata = encode_rdata(rec['type'], rec['value'])
-                    if rdata:
-                        answers.append({
-                            'name': qname,
-                            'rtype': RTYPE_MAP[rec['type']],
-                            'ttl': rec['ttl'],
-                            'rdata': rdata,
-                        })
-
-            # 如果查询 A 记录但只有 CNAME，返回 CNAME
-            if not answers and qtype == QTYPE_A:
-                for rec in domain_records:
-                    if rec['type'] == 'CNAME':
-                        rdata = encode_rdata('CNAME', rec['value'])
-                        if rdata:
-                            answers.append({
-                                'name': qname,
-                                'rtype': QTYPE_CNAME,
-                                'ttl': rec['ttl'],
-                                'rdata': rdata,
-                            })
-
-        return build_dns_response(qid, questions, answers)
+        rcode = 0 if answers or has_existing_name else 3
+        return build_dns_response(qid, questions, answers, rcode=rcode)
 
     def serve(self):
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
