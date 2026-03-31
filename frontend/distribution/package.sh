@@ -54,7 +54,7 @@ cp del_iptables.sh dist/sealos_del_iptables.sh
 chmod +x dist/sealos_add_iptables.sh dist/sealos_del_iptables.sh
 
 cp install.sh originlaunchpad.yaml docker-compose-bin dist/
-cp app.py node.py stress_test.py scheduling.py record_events.py menu.py bandwidth_autoscaler.py docker-compose.yml dist/deployapp/
+cp app.py node.py stress_test.py scheduling.py record_events.py menu.py bandwidth_autoscaler.py custom_dns.py dns_server.py dns_service.proto docker-compose.yml dist/deployapp/
 rm -f originlaunchpad.yaml install.sh docker-compose.yml
 docker tag docker.io/library/sealos-applaunchpad:dev luanshaotong/sealos-applaunchpad:${VERSION}
 docker save -o dist/launchpad.tar luanshaotong/sealos-applaunchpad:${VERSION}

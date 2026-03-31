@@ -26,6 +26,8 @@ services:
       - /root/.mxapps:/root/.mxapps
     ports:
       - "5002:5002/tcp"
+      - "5053:5053/udp"
+      - "5054:5054/tcp"
     restart: always
     stdin_open: true
     tty: true
