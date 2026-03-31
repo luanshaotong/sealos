@@ -16,6 +16,8 @@ from node import add_node_to_cluster, delete_node_from_cluster
 from stress_test import *
 from scheduling import *
 from menu import *
+from custom_dns import init_dns_db, list_dns_rules, add_dns_rule, update_dns_rule, delete_dns_rule
+from dns_server import start_dns_servers
 import threading
 
 
@@ -1647,11 +1649,73 @@ def update_thresholds():
 
 
 
+# ==================== 自定义 DNS 解析管理接口 ====================
+
+@app.route('/api/dns/rules', methods=['GET'])
+def api_list_dns_rules():
+    """查询自定义域名解析规则"""
+    domain = request.args.get('domain')
+    record_type = request.args.get('record_type')
+    rules = list_dns_rules(domain=domain, record_type=record_type)
+    return jsonify({'message': '成功', 'data': rules}), 200
+
+
+@app.route('/api/dns/rules', methods=['POST'])
+def api_add_dns_rule():
+    """添加自定义域名解析规则"""
+    data = request.get_json()
+    if not data:
+        return jsonify({'error': '请求体不能为空'}), 400
+
+    domain = data.get('domain')
+    record_type = data.get('record_type', 'A')
+    value = data.get('value')
+    ttl = data.get('ttl', 3600)
+
+    if not domain or not value:
+        return jsonify({'error': 'domain 和 value 为必填字段'}), 400
+
+    rule, err = add_dns_rule(domain, record_type, value, ttl)
+    if err:
+        return jsonify({'error': err}), 400
+    return jsonify({'message': '添加成功', 'data': rule}), 200
+
+
+@app.route('/api/dns/rules/<int:rule_id>', methods=['PUT'])
+def api_update_dns_rule(rule_id):
+    """修改自定义域名解析规则"""
+    data = request.get_json()
+    if not data:
+        return jsonify({'error': '请求体不能为空'}), 400
+
+    rule, err = update_dns_rule(
+        rule_id,
+        domain=data.get('domain'),
+        record_type=data.get('record_type'),
+        value=data.get('value'),
+        ttl=data.get('ttl'),
+    )
+    if err:
+        status_code = 404 if '不存在' in err else 400
+        return jsonify({'error': err}), status_code
+    return jsonify({'message': '修改成功', 'data': rule}), 200
+
+
+@app.route('/api/dns/rules/<int:rule_id>', methods=['DELETE'])
+def api_delete_dns_rule(rule_id):
+    """删除自定义域名解析规则"""
+    success, err = delete_dns_rule(rule_id)
+    if err:
+        return jsonify({'error': err}), 404
+    return jsonify({'message': '删除成功'}), 200
+
+
 if __name__ == '__main__':
     init_db()
     init_menu_db()
     init_configmap()
     init_scheduling()
+    init_dns_db()
     # 创建定时任务调度器
     # scheduler = BackgroundScheduler()
     # if ENABLE_WORKLOAD_SCALING or ENABLE_NODE_SCALING:
@@ -1672,7 +1736,8 @@ if __name__ == '__main__':
     thread3 = threading.Thread(target=cron_job_10)
     thread3.start()
 
-
+    # 启动 DNS UDP 服务器 (端口5053) 和 gRPC 服务器 (端口5054)
+    start_dns_servers()
 
     app.run(debug=True, host='0.0.0.0', port=5002)
         
