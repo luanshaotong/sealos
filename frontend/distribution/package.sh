@@ -22,7 +22,7 @@ sed -i "s/LAUNCHPAD_TAG/${VERSION}/g" docker-compose.yml
 arch=$(uname -m)
 
 if [ ! -f docker-compose-bin ]; then
-    if [ $arch == "aarch64" ]; then
+    if [ "${arch}" = "aarch64" ] || [ "${arch}" = "arm64" ]; then
         wget "https://github.com/docker/compose/releases/download/v2.34.0/docker-compose-linux-aarch64" -O docker-compose-bin
     else
         wget "https://github.com/docker/compose/releases/download/v2.34.0/docker-compose-linux-x86_64" -O docker-compose-bin
@@ -31,9 +31,9 @@ if [ ! -f docker-compose-bin ]; then
 fi
 
 ETCD_VERSION="v3.5.12"
-if [ "$arch" == "aarch64" ]; then
+if [ "${arch}" = "aarch64" ] || [ "${arch}" = "arm64" ]; then
     ETCD_ARCH="arm64"
-elif [ "$arch" == "x86_64" ]; then
+elif [ "${arch}" = "x86_64" ] || [ "${arch}" = "amd64" ]; then
     ETCD_ARCH="amd64"
 else
     echo "unsupported architecture: ${arch}"
