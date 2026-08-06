@@ -1,4 +1,5 @@
 import { getUserKubeConfig } from "@/utils/user";
+import { getCsrfToken } from "@/utils/security";
 
 interface StreamFetchProps {
   url: string;
@@ -20,7 +21,8 @@ export const streamFetch = ({
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: encodeURIComponent(getUserKubeConfig())
+          Authorization: encodeURIComponent(getUserKubeConfig()),
+          'X-CSRF-Token': getCsrfToken()
         },
         body: JSON.stringify(data),
         signal: abortSignal.signal

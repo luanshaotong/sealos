@@ -79,7 +79,14 @@ fi
 
 mkdir -p /usr/bin/deployapp
 rm -rf /usr/bin/deployapp/*.py /usr/bin/deployapp/__pycache__
-cp -r deployapp/* /usr/bin/deployapp/
+find deployapp -mindepth 1 -maxdepth 1 ! -name '*.db' -exec cp -r {} /usr/bin/deployapp/ \;
+for db_file in deployapp/*.db; do
+    [ -e "${db_file}" ] || continue
+    target_db="/usr/bin/deployapp/$(basename "${db_file}")"
+    if [ ! -e "${target_db}" ]; then
+        cp "${db_file}" "${target_db}"
+    fi
+done
 cd /usr/bin/deployapp
 sed -i "s/FLAG_SEALOS_DOMAIN/${DOMAIN}/g" docker-compose.yml
 docker-compose up -d

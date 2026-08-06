@@ -24,12 +24,6 @@ export default function LoginForm() {
   const [password, setPassword] = useState('');
   const toast = useToast();
   const router = useRouter();
-  useEffect(() => {
-    if (!username && !password) {
-      setUsername('admin');
-      setPassword('Sealos@2024');
-    }
-  }, []);
 
   useEffect(() => {
     const showMenu = getParamValue('showMenuWithLogin')
@@ -66,10 +60,21 @@ export default function LoginForm() {
     try {
       const session = await login({ username, password });
       const user = session?.state?.session?.user
-      if(user){
-        await initConfig(user)
-      }
       setUserIsLogin(true, JSON.stringify(session));
+      if(user){
+        try {
+          await initConfig(user)
+        } catch (error) {
+          toast({
+            position: 'top',
+            title: '菜单初始化失败',
+            description: error instanceof Error ? error.message : '请联系管理员检查角色配置',
+            status: 'warning',
+            duration: 3000,
+            isClosable: true
+          });
+        }
+      }
       toast({
         title: '登录成功',
         status: 'success',

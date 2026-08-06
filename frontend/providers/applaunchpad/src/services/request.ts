@@ -7,6 +7,7 @@ import axios, {
 import type { ApiResp } from './kubernet';
 import { isApiResp } from './kubernet';
 import { getUserKubeConfig } from '@/utils/user';
+import { getCsrfToken } from '@/utils/security';
 
 const request = axios.create({
   baseURL: '/',
@@ -29,6 +30,12 @@ request.interceptors.request.use(
     // console.log('Authorization:', _headers['Authorization']);
     if (!config.headers || config.headers['Content-Type'] === '') {
       _headers['Content-Type'] = 'application/json';
+    }
+    if (config.method && !['get', 'head', 'options'].includes(config.method.toLowerCase())) {
+      const csrfToken = getCsrfToken();
+      if (csrfToken) {
+        _headers['X-CSRF-Token'] = csrfToken;
+      }
     }
 
     config.headers = _headers;

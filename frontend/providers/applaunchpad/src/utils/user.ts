@@ -44,6 +44,8 @@ export const setUserIsLogin = (isLogin: boolean, session: string) => {
     localStorage.setItem('session', session);
   } else {
     localStorage.removeItem('session');
+    document.cookie = 'lp_session=; Path=/; Max-Age=0; SameSite=Lax';
+    document.cookie = 'lp_csrf=; Path=/; Max-Age=0; SameSite=Lax';
   }
 };
 

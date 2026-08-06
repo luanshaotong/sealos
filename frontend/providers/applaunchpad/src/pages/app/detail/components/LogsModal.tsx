@@ -20,6 +20,7 @@ import { useTranslation } from 'next-i18next';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import styles from '../index.module.scss';
 import { getUserKubeConfig } from '@/utils/user';
+import { getCsrfToken } from '@/utils/security';
 
 const LogsModal = ({
   namespace,
@@ -67,7 +68,8 @@ const LogsModal = ({
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-          Authorization: encodeURIComponent(JSON.stringify(getUserKubeConfig()))
+        Authorization: encodeURIComponent(JSON.stringify(getUserKubeConfig())),
+        'X-CSRF-Token': getCsrfToken()
       },
       body: JSON.stringify(data),
       signal: controller.signal

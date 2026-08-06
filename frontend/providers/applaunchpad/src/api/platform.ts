@@ -4,6 +4,7 @@ import { EnvResponse } from '@/types';
 import type { AccountCRD, UserQuotaItemType, userPriceType } from '@/types/user';
 import { AuthCnamePrams } from './params';
 import { UpdateUserGuideParams } from '@/pages/api/guide/updateGuide';
+import { encryptLoginPayload } from '@/utils/security';
 
 export const getResourcePrice = () => GET<userPriceType>('/api/platform/resourcePrice');
 
@@ -28,5 +29,5 @@ export const getPriceBonus = () => GET('/api/guide/getBonus');
 
 export const createNamespace = (data: { ns: string,roleId?:any }) => POST('/api/createNamespace', data);
 
-export const login = (data: { username: string; password: string }) =>
-  POST('/api/platform/login', data);
+export const login = async (data: { username: string; password: string }) =>
+  POST('/api/platform/login', await encryptLoginPayload(data));

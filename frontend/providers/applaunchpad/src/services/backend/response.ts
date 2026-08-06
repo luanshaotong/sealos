@@ -11,6 +11,7 @@ export const jsonRes = <T = any>(
   }
 ) => {
   const { code = 200, message = '', data = null, error } = props || {};
+  const isProd = process.env.NODE_ENV === 'production';
 
   // Specified error
   if (typeof error === 'string' && ERROR_RESPONSE[error]) {
@@ -20,11 +21,15 @@ export const jsonRes = <T = any>(
   // another error
   let msg = message;
   if ((code < 200 || code >= 400) && !message) {
-    msg = error?.body?.message || error?.message || '请求错误';
-    if (typeof error === 'string') {
-      msg = error;
-    } else if (error?.code && error.code in ERROR_TEXT) {
-      msg = ERROR_TEXT[error.code];
+    if (isProd) {
+      msg = code === 404 ? '资源不存在' : code === 401 || code === 403 ? '凭证错误' : '请求错误';
+    } else {
+      msg = error?.body?.message || error?.message || '请求错误';
+      if (typeof error === 'string') {
+        msg = error;
+      } else if (error?.code && error.code in ERROR_TEXT) {
+        msg = ERROR_TEXT[error.code];
+      }
     }
     console.error('===jsonRes error===\n ', error?.body || error);
   }
@@ -33,6 +38,6 @@ export const jsonRes = <T = any>(
     code,
     statusText: '',
     message: msg,
-    data: data || error || null
+    data: data || (isProd && (code < 200 || code >= 400) ? null : error) || null
   });
 };

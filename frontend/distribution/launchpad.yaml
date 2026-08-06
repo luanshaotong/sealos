@@ -59,9 +59,25 @@ spec:
         - name: LAUNCHPAD_USERNAME
           value: "admin"
         - name: LAUNCHPAD_PASSWORD
-          value: "Sealos@2024"
+          value: "Sealos@2024!Secure"
         - name: JWT_SECRET
           value: "SEALOS_SECRET"
+        - name: AUTH_REQUIRED_ALL
+          value: "true"
+        - name: CSRF_ENABLED
+          value: "true"
+        - name: CORS_ALLOWED_ORIGINS
+          value: "http://FLAG_SEALOS_DOMAIN:32293,http://FLAG_SEALOS_DOMAIN"
+        - name: MAX_LOGIN_ATTEMPTS
+          value: "5"
+        - name: LOGIN_LOCK_MINUTES
+          value: "30"
+        - name: LOGIN_CRYPTO_KEY
+          value: "SEALOS_LOGIN_CRYPTO_KEY"
+        - name: LOGIN_ENCRYPTION_REQUIRED
+          value: "true"
+        - name: COOKIE_SECURE
+          value: "false"
         - name: ADMINTOKEN
           value: KUBECONFIGTEMPLATE
         - name: GUIDE_ENABLED
