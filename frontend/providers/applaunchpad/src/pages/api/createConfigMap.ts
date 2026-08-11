@@ -33,7 +33,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
 
     const namespace = "default";
 
-    createConfigMap(k8sCore, namespace, name, {});    
+    await createConfigMap(k8sCore, namespace, name, {});    
 
     jsonRes(res, {
         data: {

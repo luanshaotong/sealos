@@ -16,8 +16,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
     };
 
     const name = process.env.GLOBAL_CONFIGMAP_NAME || 'global-configmap';
+    const configFileName = (process.env.GLOBAL_CONFIGMAP_PATH || '/etc/mxgl.properties').split('/').pop() || 'mxgl.properties';
 
     const namespace = "default";
+    const configData = typeof data === 'string' ? { [configFileName]: data } : { ...data };
     
     const configMap = {
         apiVersion: 'v1',
@@ -26,9 +28,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
         name: name,
         namespace: namespace
         },
-        data: {
-        ...data
-        }
+        data: configData
     };
 
     // check if the ConfigMap exists
@@ -37,7 +37,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
         // update the ConfigMap
         await k8sCore.replaceNamespacedConfigMap(name, namespace, configMap); 
     } catch (error: any) {
-        if (error?.code !== 404 && error?.statusCode !== 404) {
+        if (error?.code === 404 || error?.statusCode === 404) {
             await k8sCore.createNamespacedConfigMap(namespace, configMap);
             jsonRes(res, {
                 data: {
@@ -46,7 +46,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
             });
             return;
         } else {
-            throw error; // rethrow if it's not a 404 error
+            throw error;
         }
     }
 
