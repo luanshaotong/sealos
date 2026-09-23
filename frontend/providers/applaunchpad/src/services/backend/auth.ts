@@ -1,3 +1,4 @@
+import '@/services/backend/tls';
 import { IncomingHttpHeaders } from 'http';
 import { KubeConfig, CoreV1Api } from '@kubernetes/client-node';
 import yaml from 'js-yaml';

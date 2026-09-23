@@ -14,14 +14,24 @@
 # ==============================================================================
 
 # --- 配置 ---
-# 需要保护的 TCP 端口列表，用逗号分隔
-PROTECTED_PORTS="9100,5000,5001"
+# 需要保护的 TCP 端口列表，用逗号分隔。可通过环境变量覆盖。
+MASTER_PROTECTED_PORTS="9100,5000,5001,2379,2380,2381,5473,6443,8443,10249,10250,10254,10257,10259,30081,30848,30888,30971"
+WORKER_PROTECTED_PORTS="9100,8443,10249,10250,10254,30081,30848,30888,30971"
+NODE_ROLE="${NODE_ROLE:-auto}"
+PROTECTED_PORTS="${PROTECTED_PORTS:-}"
+STALE_PORT_SETS=(
+  "9100,5000,5001,2379,2380,2381,5473,6443,8443,10249,10250,10254,10257,10259,30971"
+  "9100,10249,10250,10254,8443,30971"
+  "9100,5000,5001,2379,2380,30971"
+  "9100,5000,5001,2379,2380"
+  "9100,5000,5001"
+)
 
 # 自定义 iptables 链的名称
 CHAIN_NAME="MASTER_WHITELIST_ACCESS"
 
 # 需要加入白名单的 Docker 容器名称
-DOCKER_CONTAINER_NAME="deployapp"
+DOCKER_CONTAINER_NAME="${DOCKER_CONTAINER_NAME:-deployapp}"
 
 
 # --- 脚本主体 ---
@@ -33,33 +43,101 @@ if [ "$(id -u)" -ne 0 ]; then
 fi
 
 # 检查必要的命令
-for cmd in kubectl awk sort grep printf tr; do
+for cmd in awk sort grep printf tr hostname; do
     if ! command -v "$cmd" &> /dev/null; then
         echo "错误: 核心命令 '$cmd' 未找到。请检查你的系统环境。" >&2
         exit 1
     fi
 done
 
-# 2. 尝试连接到 Kubernetes 集群
-echo "正在检查 Kubernetes API Server 连接..."
-if ! kubectl get nodes -o name >/dev/null; then
-    echo "错误: kubectl 无法连接到 Kubernetes 集群或获取节点信息。" >&2
-    exit 1
+# 2. 确定当前节点需要保护的端口
+if [ -z "$PROTECTED_PORTS" ]; then
+    if [ "$NODE_ROLE" = "auto" ]; then
+        if command -v kubectl &> /dev/null && kubectl get node "$(hostname)" -o name >/dev/null 2>&1; then
+            if kubectl get node "$(hostname)" -o jsonpath='{.metadata.labels.node-role\.kubernetes\.io/control-plane}' 2>/dev/null | grep -q . \
+                || kubectl get node "$(hostname)" -o jsonpath='{.metadata.labels.node-role\.kubernetes\.io/master}' 2>/dev/null | grep -q .; then
+                NODE_ROLE="master"
+            else
+                NODE_ROLE="worker"
+            fi
+        else
+            NODE_ROLE="worker"
+            echo "信息: 无法通过 kubectl 自动识别节点角色，默认按 worker 端口处理。"
+        fi
+    fi
+
+    case "$NODE_ROLE" in
+        master|control-plane)
+            PROTECTED_PORTS="$MASTER_PROTECTED_PORTS"
+            ;;
+        worker)
+            PROTECTED_PORTS="$WORKER_PROTECTED_PORTS"
+            ;;
+        *)
+            echo "错误: NODE_ROLE 只能是 auto、master、control-plane 或 worker。" >&2
+            exit 1
+            ;;
+    esac
 fi
-echo "Kubernetes 连接成功。"
+echo "节点角色: $NODE_ROLE"
+build_port_groups() {
+    local ports="$1"
+    echo "$ports" | tr ',' '\n' | awk '
+        NF {
+            if (count == 15) {
+                print group
+                group = $1
+                count = 1
+            } else {
+                group = group ? group "," $1 : $1
+                count++
+            }
+        }
+        END {
+            if (group) print group
+        }
+    '
+}
+
+port_group_exists() {
+    local candidate="$1"
+    local group
+    while IFS= read -r group; do
+        if [ "$candidate" = "$group" ]; then
+            return 0
+        fi
+    done <<< "$PORT_GROUPS"
+    return 1
+}
+
+PORT_GROUPS=$(build_port_groups "$PROTECTED_PORTS")
 echo ""
 
 
 # 3. 动态获取所有白名单来源
 echo "正在从多个来源获取白名单条目..."
 
-# 3a. 从 Kubernetes 获取所有节点的 Internal-IP 和 External-IP
-NODE_IPS=$(kubectl get nodes -o wide --no-headers=true | awk '{print $6; if ($7 != "<none>") print $7}')
-echo "已获取 Kubernetes 节点 IP。"
+# 3a. 从 Kubernetes 或环境变量获取所有节点的 Internal-IP 和 External-IP
+NODE_IPS="${NODE_IPS:-}"
+if [ -n "$NODE_IPS" ]; then
+    echo "已从 NODE_IPS 环境变量获取 Kubernetes 节点 IP。"
+elif command -v kubectl &> /dev/null && kubectl get nodes -o name >/dev/null 2>&1; then
+    NODE_IPS=$(kubectl get nodes -o wide --no-headers=true | awk '{print $6; if ($7 != "<none>") print $7}')
+    echo "已从 Kubernetes 获取节点 IP。"
+else
+    echo "信息: 未提供 NODE_IPS，且 kubectl 不可用，跳过 Kubernetes 节点 IP。"
+fi
 
-# 3b. 从 Kubernetes 获取所有节点的 PodCIDR
-POD_CIDRS=$(kubectl describe nodes | grep 'PodCIDR:' | awk '{print $2}')
-echo "已获取 Kubernetes Pod CIDR。"
+# 3b. 从 Kubernetes 或环境变量获取所有节点的 PodCIDR
+POD_CIDRS="${POD_CIDRS:-}"
+if [ -n "$POD_CIDRS" ]; then
+    echo "已从 POD_CIDRS 环境变量获取 Kubernetes Pod CIDR。"
+elif command -v kubectl &> /dev/null && kubectl describe nodes >/dev/null 2>&1; then
+    POD_CIDRS=$(kubectl describe nodes | grep 'PodCIDR:' | awk '{print $2}')
+    echo "已从 Kubernetes 获取 Pod CIDR。"
+else
+    echo "信息: 未提供 POD_CIDRS，且 kubectl 不可用，跳过 Kubernetes Pod CIDR。"
+fi
 
 # 3c. 获取指定 Docker 容器的 IP 地址
 DOCKER_IP=""
@@ -95,6 +173,8 @@ fi
 echo ""
 echo "--- 开始配置防火墙 ---"
 echo "受保护的端口: $PROTECTED_PORTS"
+echo "iptables 端口规则分组:"
+echo "$PORT_GROUPS"
 echo "使用的自定义链: $CHAIN_NAME"
 echo "最终生成的白名单条目:"
 echo "$WHITELIST_ENTRIES"
@@ -128,13 +208,28 @@ iptables -A "$CHAIN_NAME" -j DROP
 echo "规则添加: 拒绝所有其他源地址的流量 (默认 DROP)"
 
 
-# 6. 确保 INPUT 链中有跳转到我们自定义链的规则
-if ! iptables -C INPUT -p tcp -m multiport --dports "$PROTECTED_PORTS" -j "$CHAIN_NAME" >/dev/null 2>&1; then
-  echo "在 INPUT 链中添加跳转规则..."
-  iptables -I INPUT 1 -p tcp -m multiport --dports "$PROTECTED_PORTS" -j "$CHAIN_NAME"
-else
-  echo "INPUT 链中已存在跳转规则，无需重复添加。"
-fi
+# 6. 确保 INPUT 链中有跳转到我们自定义链的规则。multiport 单条规则最多 15 个端口。
+while IFS= read -r ports; do
+    if [ -z "$ports" ]; then
+        continue
+    fi
+    if ! iptables -C INPUT -p tcp -m multiport --dports "$ports" -j "$CHAIN_NAME" >/dev/null 2>&1; then
+      echo "在 INPUT 链中添加跳转规则: $ports"
+      iptables -I INPUT 1 -p tcp -m multiport --dports "$ports" -j "$CHAIN_NAME"
+    else
+      echo "INPUT 链中已存在跳转规则，无需重复添加: $ports"
+    fi
+done <<< "$PORT_GROUPS"
+
+for stale_ports in "${STALE_PORT_SETS[@]}"; do
+    if port_group_exists "$stale_ports"; then
+        continue
+    fi
+    while iptables -C INPUT -p tcp -m multiport --dports "$stale_ports" -j "$CHAIN_NAME" >/dev/null 2>&1; do
+        echo "删除旧 INPUT 跳转规则: $stale_ports"
+        iptables -D INPUT -p tcp -m multiport --dports "$stale_ports" -j "$CHAIN_NAME"
+    done
+done
 
 
 echo ""

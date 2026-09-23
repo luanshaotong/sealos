@@ -21,7 +21,13 @@ import {
   json2Service
 } from '@/utils/deployYaml2Json';
 import { serviceSideProps } from '@/utils/i18n';
-import { addConfigMapToYamlList, getErrText, getParamValue, patchYamlList } from '@/utils/tools';
+import {
+  addConfigMapToYamlList,
+  getErrText,
+  getParamValue,
+  patchYamlList,
+  validateConfigMapMountPath
+} from '@/utils/tools';
 import { Box, Flex } from '@chakra-ui/react';
 import { useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'next-i18next';
@@ -392,6 +398,20 @@ const EditApp = ({
                 return toast({
                   status: 'warning',
                   title: t('Network port conflict')
+                });
+              }
+
+              const invalidConfigMap = data.configMapList.find(
+                (item) => !validateConfigMapMountPath(item.mountPath).isValid
+              );
+              if (invalidConfigMap) {
+                const result = validateConfigMapMountPath(invalidConfigMap.mountPath);
+                return toast({
+                  status: 'warning',
+                  title: t('ConfigMap mount path cannot exceed Kubernetes limit', {
+                    max: result.maxLength,
+                    length: result.volumeName.length
+                  })
                 });
               }
 

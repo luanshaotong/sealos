@@ -18,6 +18,32 @@ import { pathFormat, pathToNameFormat, str2Num, strToBase64 } from '@/utils/tool
 import dayjs from 'dayjs';
 import yaml from 'js-yaml';
 
+const nodeHostnameKey = 'kubernetes.io/hostname';
+
+const buildPreferredNodeAffinity = (nodeName?: string) =>
+  nodeName
+    ? {
+        affinity: {
+          nodeAffinity: {
+            preferredDuringSchedulingIgnoredDuringExecution: [
+              {
+                weight: 100,
+                preference: {
+                  matchExpressions: [
+                    {
+                      key: nodeHostnameKey,
+                      operator: 'In',
+                      values: [nodeName]
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        }
+      }
+    : {};
+
 export const json2DeployCr = (data: AppEditType, type: 'deployment' | 'statefulset') => {
   const totalStorage = data.storeList.reduce((acc, item) => acc + item.value, 0);
 
@@ -206,7 +232,7 @@ export const json2DeployCr = (data: AppEditType, type: 'deployment' | 'statefuls
         template: {
           metadata: templateMetadata,
           spec: {
-            ...(data?.nodeName ? { nodeSelector: { 'kubernetes.io/hostname': data.nodeName } } : {}),
+            ...buildPreferredNodeAffinity(data?.nodeName),
             automountServiceAccountToken: false,
             imagePullSecrets,
             containers: containers,
@@ -233,7 +259,7 @@ export const json2DeployCr = (data: AppEditType, type: 'deployment' | 'statefuls
         template: {
           metadata: templateMetadata,
           spec: {
-            ...(data?.nodeName ? { nodeSelector: { 'kubernetes.io/hostname': data.nodeName } } : {}),
+            ...buildPreferredNodeAffinity(data?.nodeName),
             automountServiceAccountToken: false,
             imagePullSecrets,
             terminationGracePeriodSeconds: 10,

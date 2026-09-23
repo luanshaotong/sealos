@@ -79,6 +79,18 @@ export const pathToNameFormat = (str: string) => {
   return endsWithSlash ? replacedStr : replacedStr.toLowerCase();
 };
 
+export const K8S_DNS_LABEL_MAX_LENGTH = 63;
+
+export const validateConfigMapMountPath = (mountPath: string) => {
+  const volumeName = pathToNameFormat(mountPath);
+
+  return {
+    isValid: volumeName.length <= K8S_DNS_LABEL_MAX_LENGTH,
+    volumeName,
+    maxLength: K8S_DNS_LABEL_MAX_LENGTH
+  };
+};
+
 /**
  * read a file text content
  */

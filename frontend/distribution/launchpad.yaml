@@ -66,6 +66,8 @@ spec:
           value: "true"
         - name: CSRF_ENABLED
           value: "true"
+        - name: CSRF_TOKEN
+          value: "SEALOS_CSRF_TOKEN"
         - name: CORS_ALLOWED_ORIGINS
           value: "http://FLAG_SEALOS_DOMAIN:32293,http://FLAG_SEALOS_DOMAIN"
         - name: MAX_LOGIN_ATTEMPTS
@@ -78,14 +80,31 @@ spec:
           value: "true"
         - name: COOKIE_SECURE
           value: "false"
+        - name: ALLOW_SELF_SIGNED_CERTS
+          value: "true"
+        - name: NODE_TLS_REJECT_UNAUTHORIZED
+          value: "0"
         - name: ADMINTOKEN
           value: KUBECONFIGTEMPLATE
         - name: GUIDE_ENABLED
           value: "true"
+        - name: MONITOR_PAGE_PROTOCOL
+          value: "http"
+        - name: MONITOR_PAGE_PORT
+          value: "30971"
+        - name: MONITOR_PAGE_PATH
+          value: "/d/rYdddlPWk/node-exporter-full"
         - name: GLOBAL_CONFIGMAP_NAME
           value: mx-applaunchpad-global-config
         - name: GLOBAL_CONFIGMAP_PATH
           value: /etc/mxgl.properties
+        resources:
+          requests:
+            cpu: "2"
+            memory: 2Gi
+          limits:
+            cpu: "2"
+            memory: 2Gi
         ports:
         - containerPort: 3000
 ---

@@ -150,7 +150,8 @@ export const getMyApps = (namespace: string, page = 1, pageSize = 10, appName?: 
       apps: res.apps.map(adaptAppListItem)
     }));
 
-export const addStressTesting = (params: string) => GET(`/api/node/stressTesting?${params}`);
+export const addStressTesting = (params: string | URLSearchParams) =>
+  GET(`/api/node/stressTesting?${params.toString()}`);
 
 export const delAppByName = (namespace: string, name: string) =>
   DELETE(`/api/delApp?namespace=${namespace}`, { name });

@@ -1,10 +1,11 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { ApiResp } from '@/services/kubernet';
-import { authSession } from '@/services/backend/auth';
+import { authSession, getAdminAuthorization } from '@/services/backend/auth';
 import { getK8s } from '@/services/backend/kubernetes';
 import { jsonRes } from '@/services/backend/response';
 import yaml from 'js-yaml';
 import { addConfigMapToYamlList } from '@/utils/tools';
+import { syncGlobalConfigMapToAllNamespaces } from '@/services/backend/configmap';
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse<ApiResp>) {
   const namespace = req.query.namespace as string;
@@ -86,6 +87,15 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
     });
 
     const applyRes = await applyYamlList(new_yamlList, handleType ?? 'create', namespace);
+
+    try {
+      const { k8sCore } = await getK8s({
+        kubeconfig: await getAdminAuthorization(req.headers)
+      });
+      await syncGlobalConfigMapToAllNamespaces(k8sCore);
+    } catch (syncErr) {
+      console.error('sync global configmap after app apply failed:', syncErr);
+    }
 
     jsonRes(res, { data: applyRes.map((item) => item.kind) });
   } catch (err: any) {

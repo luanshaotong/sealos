@@ -25,4 +25,7 @@ declare global {
 export type EnvResponse = {
   domain: string;
   guideEnabled: boolean;
+  monitorPageProtocol: string;
+  monitorPagePort: string;
+  monitorPagePath: string;
 };

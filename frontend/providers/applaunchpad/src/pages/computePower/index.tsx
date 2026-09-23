@@ -213,12 +213,13 @@ const AppList = ({
     try {
       let _nodeModel = {...nodeModel,app_list:nodeModel.app_list ? nodeModel.app_list.map((item:any)=>{
         return item.label
-      }).join('|') : ''}
+      }).join(',') : ''}
       console.log(nodeModel)
-      let params = Object.keys(_nodeModel).reduce((prev: any, next: any) => {
-        return `${prev}${prev === '' ? '' : '&'}${next}=${_nodeModel[next]}`
-      }, '')
-      params += `&stress_id=${Date.now()}`
+      const params = new URLSearchParams();
+      Object.entries(_nodeModel).forEach(([key, value]) => {
+        params.set(key, String(value ?? ''));
+      });
+      params.set('stress_id', String(Date.now()));
       const resp = await addStressTesting(params)
       setCreateLoading(false)
       toast({

@@ -51,6 +51,51 @@ import { customAlphabet } from 'nanoid';
 import { SEALOS_DOMAIN } from '@/store/static';
 
 const nanoid = customAlphabet('abcdefghijklmnopqrstuvwxyz', 12);
+const nodeHostnameKey = 'kubernetes.io/hostname';
+
+const getNodeNameFromAffinity = (podSpec?: any) => {
+  const preferredTerms =
+    podSpec?.affinity?.nodeAffinity?.preferredDuringSchedulingIgnoredDuringExecution || [];
+
+  for (const term of preferredTerms) {
+    const expressions = term?.preference?.matchExpressions || [];
+    const hostnameExpression = expressions.find(
+      (expression: any) =>
+        expression?.key === nodeHostnameKey &&
+        expression?.operator === 'In' &&
+        expression?.values?.length
+    );
+
+    if (hostnameExpression?.values?.[0]) {
+      return hostnameExpression.values[0];
+    }
+  }
+
+  const requiredTerms =
+    podSpec?.affinity?.nodeAffinity?.requiredDuringSchedulingIgnoredDuringExecution
+      ?.nodeSelectorTerms || [];
+
+  for (const term of requiredTerms) {
+    const hostnameExpression = term?.matchExpressions?.find(
+      (expression: any) =>
+        expression?.key === nodeHostnameKey &&
+        expression?.operator === 'In' &&
+        expression?.values?.length
+    );
+
+    if (hostnameExpression?.values?.[0]) {
+      return hostnameExpression.values[0];
+    }
+  }
+
+  return '';
+};
+
+const getConfiguredNodeName = (podSpec?: any) =>
+  getNodeNameFromAffinity(podSpec) ||
+  podSpec?.nodeSelector?.[nodeHostnameKey] ||
+  podSpec?.nodeName ||
+  '';
 
 export const sortAppListByTime = (apps: AppListItemType[]): AppListItemType[] => {
   return apps.sort((a, b) => {
@@ -460,7 +505,7 @@ export const adaptAppDetail = (configs: DeployKindsType[]): AppDetailType => {
           value: Number(item.metadata?.annotations?.value || 0)
         }))
       : [],
-    nodeName: appDeploy.spec?.template.spec?.nodeName || ''
+    nodeName: getConfiguredNodeName(appDeploy.spec?.template.spec)
   };
 };
 

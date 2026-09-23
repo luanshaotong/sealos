@@ -1,6 +1,8 @@
 import threading
 import struct
 import socket
+import importlib
+import os
 from concurrent import futures
 from custom_dns import get_all_dns_records
 
@@ -208,11 +210,42 @@ class DnsUdpServer:
 
 # ==================== gRPC 服务器 ====================
 
-def start_grpc_server(port=GRPC_PORT):
+def load_grpc_modules():
     try:
         import grpc
         import dns_service_pb2
         import dns_service_pb2_grpc
+        return grpc, dns_service_pb2, dns_service_pb2_grpc
+    except ImportError as first_error:
+        proto_dir = os.path.dirname(os.path.abspath(__file__))
+        proto_file = os.path.join(proto_dir, 'dns_service.proto')
+
+        try:
+            from grpc_tools import protoc
+            result = protoc.main([
+                'grpc_tools.protoc',
+                f'-I{proto_dir}',
+                f'--python_out={proto_dir}',
+                f'--grpc_python_out={proto_dir}',
+                proto_file,
+            ])
+            if result != 0:
+                raise RuntimeError(f'grpc_tools.protoc exited with code {result}')
+
+            importlib.invalidate_caches()
+            import grpc
+            import dns_service_pb2
+            import dns_service_pb2_grpc
+            return grpc, dns_service_pb2, dns_service_pb2_grpc
+        except Exception as generate_error:
+            raise ImportError(
+                f'failed to load gRPC modules: {first_error}; failed to generate proto modules: {generate_error}'
+            ) from generate_error
+
+
+def start_grpc_server(port=GRPC_PORT):
+    try:
+        grpc, dns_service_pb2, dns_service_pb2_grpc = load_grpc_modules()
 
         class DnsServiceServicer(dns_service_pb2_grpc.DnsServiceServicer):
             def Lookup(self, request, context):
@@ -259,8 +292,8 @@ def start_grpc_server(port=GRPC_PORT):
         server.start()
         print(f'DNS gRPC server listening on 0.0.0.0:{port}', flush=True)
         server.wait_for_termination()
-    except ImportError:
-        print('gRPC dependencies not installed, skipping gRPC server. Install: pip install grpcio grpcio-tools', flush=True)
+    except ImportError as e:
+        print(f'gRPC server not started: {e}', flush=True)
 
 
 # ==================== 启动入口 ====================

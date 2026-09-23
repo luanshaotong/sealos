@@ -8,9 +8,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
     console.log('1111111111', JSON.stringify(req.query) )
     const kubeconfig = await authSession(req.headers);
     const domain = process.env.SERVER_BASE_URL;
-    let params = Object.keys(req.query).reduce((prev: any, next: any) => {
-      return `${prev}${prev === '' ? '' : '&'}${next}=${req.query[next]}`
-    }, '')
+    const params = new URLSearchParams();
+    Object.entries(req.query).forEach(([key, value]) => {
+      const normalizedValue = Array.isArray(value) ? value.join(',') : value;
+      if (normalizedValue !== undefined) params.set(key, normalizedValue);
+    });
     const response = await fetch(`${domain}/api/stressTesting?${params}`, {
       method: 'GET',
       headers: {

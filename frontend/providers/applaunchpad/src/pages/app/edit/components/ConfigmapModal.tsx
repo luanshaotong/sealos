@@ -16,6 +16,7 @@ import {
 import { useForm } from 'react-hook-form';
 import MyFormControl from '@/components/FormControl';
 import { useTranslation } from 'next-i18next';
+import { validateConfigMapMountPath } from '@/utils/tools';
 
 export type ConfigMapType = {
   id?: string;
@@ -83,6 +84,15 @@ const ConfigmapModal = ({
                   validate: (e) => {
                     if (listNames.includes(e.toLocaleLowerCase())) {
                       return t('ConfigMap Path Conflict') || 'ConfigMap Path Conflict';
+                    }
+                    const result = validateConfigMapMountPath(e);
+                    if (!result.isValid) {
+                      return (
+                        t('ConfigMap mount path cannot exceed Kubernetes limit', {
+                          max: result.maxLength,
+                          length: result.volumeName.length
+                        }) || 'ConfigMap mount path cannot exceed Kubernetes limit'
+                      );
                     }
                     return true;
                   }

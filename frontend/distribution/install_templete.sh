@@ -1,3 +1,5 @@
+INSTALL_DIR="$(cd "$(dirname "$0")" && pwd)"
+
 docker login -u admin -p passw0rd sealos.hub:5000
 docker load -i launchpad.tar
 docker tag luanshaotong/sealos-applaunchpad:LAUNCHPAD_TAG sealos.hub:5000/luanshaotong/sealos-applaunchpad:LAUNCHPAD_TAG
@@ -91,6 +93,28 @@ cd /usr/bin/deployapp
 sed -i "s/FLAG_SEALOS_DOMAIN/${DOMAIN}/g" docker-compose.yml
 docker-compose up -d
 configure_coredns_forward
+kubectl create configmap image-use -n default --from-literal=placeholder=placeholder --dry-run=client -o yaml | kubectl apply -f -
+
+run_optional_script() {
+    script_path="$1"
+    script_name="$(basename "${script_path}")"
+
+    if [ ! -f "${script_path}" ]; then
+        echo "skip 跳过 ${script_name}: script not found 未找到脚本"
+        return 0
+    fi
+
+    chmod +x "${script_path}"
+    echo "run 执行 ${script_name}"
+    if ! "${script_path}"; then
+        echo "warning 警告: ${script_name} failed 执行失败"
+        return 1
+    fi
+}
+
+run_optional_script "${INSTALL_DIR}/fix-kube-scheduler-v1.27.15.sh"
+run_optional_script "${INSTALL_DIR}/import-grafana-dashboard-configmap.sh"
+run_optional_script "${INSTALL_DIR}/configure-grafana-monitor-embedding.sh"
 
 # cp origindeployapp.service deployapp.service
 # sed -i "s/FLAG_SEALOS_DOMAIN/${DOMAIN}/g" deployapp.service

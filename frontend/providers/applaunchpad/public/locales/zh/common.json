@@ -144,6 +144,7 @@
   "Filename can not empty": "文件名不能为空",
   "File Value can not empty": "文件值不能为空",
   "ConfigMap Conflict": "配置映射冲突",
+  "ConfigMap mount path cannot exceed Kubernetes limit": "ConfigMap 挂载路径过长，生成的 Kubernetes 卷名称不能超过 {{max}} 个字符（当前 {{length}} 个字符）。",
   "Storage path can not empty": "挂载路径不能为空",
   "Storage Range": "容量范围",
   "Storage Value can not empty": "容量不能为空",

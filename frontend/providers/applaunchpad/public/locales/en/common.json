@@ -133,6 +133,7 @@
   "Filename can not empty": "Filename can not empty",
   "File Value can not empty": "File Value can not empty",
   "ConfigMap Path Conflict": "ConfigMap Path Conflict",
+  "ConfigMap mount path cannot exceed Kubernetes limit": "ConfigMap mount path is too long. The generated Kubernetes volume name must be no more than {{max}} characters (current: {{length}}).",
   "Storage path can not empty": "Storage path can not empty",
   "Storage Range": "Storage Range",
   "Storage Value can not empty": "Storage Value can not empty",

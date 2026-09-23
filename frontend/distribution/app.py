@@ -19,6 +19,7 @@ from menu import *
 from custom_dns import init_dns_db, list_dns_rules, add_dns_rule, update_dns_rule, delete_dns_rule
 from dns_server import start_dns_servers
 import threading
+import re as regex
 
 
 app = Flask(__name__)
@@ -748,12 +749,16 @@ def deployAppWithImage(file_path, modelName, modelCode, modelVersion,liveProbe, 
 
 def run_command_loadAndPushImage(command):
     """执行命令并返回结果"""
-    try:
-        res = subprocess.run(command, shell=True, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        return res
-    except subprocess.CalledProcessError as e:
-        print("Error executing command: " + e.stderr.decode().strip())
-        return e.stderr.decode().strip()
+    res = subprocess.run(command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    if res.returncode != 0:
+        err = res.stderr.decode().strip() or res.stdout.decode().strip()
+        print("Error executing command: " + err, flush=True)
+    return res
+
+def command_output(result):
+    stdout = result.stdout.decode().strip() if result.stdout else ''
+    stderr = result.stderr.decode().strip() if result.stderr else ''
+    return '\n'.join([item for item in [stdout, stderr] if item])
 
 # API端点：加载、标记并推送镜像
 @app.route('/api/loadAndPushImage', methods=['POST'])
@@ -787,15 +792,11 @@ def load_and_push_image():
     try:
         # 加载镜像并获取镜像的名称
         load_output = run_command_loadAndPushImage('docker load -i {}'.format(image_path))
-        print('load_output: {}'.format(load_output))
-        
-        if isinstance(load_output, subprocess.CompletedProcess):
-            load_output_str = load_output.stdout.decode().strip()
-        else:
-            load_output_str = load_output
+        load_output_str = command_output(load_output)
+        print('load_output: {}'.format(load_output_str), flush=True)
 
         # 确认加载输出中是否包含 'Loaded' 字样
-        if 'Loaded' not in load_output_str:
+        if load_output.returncode != 0 or 'Loaded' not in load_output_str:
             return jsonify({'error': 'Failed to load image: ' + load_output_str}), 500
         print("Loaded image from {}".format(image_path), flush=True)
 
@@ -811,12 +812,23 @@ def load_and_push_image():
         err = run_command_loadAndPushImage(docker_tag_command)
 
         # 判断是否出错
-        if isinstance(err, subprocess.CalledProcessError):
-            error_message = err.stderr.decode().strip()  # 获取标准错误信息
+        if err.returncode != 0:
+            error_message = command_output(err)
             print("Error during docker tag: {}".format(error_message))
             return jsonify({'error': 'Failed to tag image: ' + error_message}), 500
 
         print("Tagged image as {}".format(full_image_name), flush=True)
+
+        registry_url = REGISTRY_URL or 'sealos.hub:5000'
+        registry_user = REGISTRY_USER or 'admin'
+        registry_pass = REGISTRY_PASS or 'passw0rd'
+        docker_login_command = 'docker login -u {} -p {} {}'.format(registry_user, registry_pass, registry_url)
+        print("Running login command: docker login -u {} -p ****** {}".format(registry_user, registry_url), flush=True)
+        err = run_command_loadAndPushImage(docker_login_command)
+        if err.returncode != 0:
+            error_message = command_output(err)
+            print("Error during docker login: {}".format(error_message))
+            return jsonify({'error': 'Failed to login registry: ' + error_message}), 500
 
         # 推送镜像到 sealos.hub
         docker_push_command = 'docker push {}'.format(full_image_name)
@@ -824,8 +836,8 @@ def load_and_push_image():
         err = run_command_loadAndPushImage(docker_push_command)
 
         # 判断推送是否成功
-        if isinstance(err, subprocess.CalledProcessError):
-            error_message = err.stderr.decode().strip()  # 获取标准错误信息
+        if err.returncode != 0:
+            error_message = command_output(err)
             print("Error during docker push: {}".format(error_message))
             return jsonify({'error': 'Failed to push image: ' + error_message}), 500
 
@@ -1150,12 +1162,14 @@ def upload_and_extract():
     uploaded_file = request.files['file']
 
     if uploaded_file and uploaded_file.filename.endswith('.zip'):
+        os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+        upload_filename = os.path.basename(uploaded_file.filename)
         # 保存上传的ZIP文件
-        zip_path = os.path.join(UPLOAD_FOLDER, uploaded_file.filename)
+        zip_path = os.path.join(UPLOAD_FOLDER, upload_filename)
         uploaded_file.save(zip_path)
 
         # 解压ZIP文件
-        extract_path = os.path.join(UPLOAD_FOLDER, uploaded_file.filename[:-4])  # 去掉.zip扩展名
+        extract_path = os.path.join(UPLOAD_FOLDER, upload_filename[:-4])  # 去掉.zip扩展名
         os.makedirs(extract_path, exist_ok=True)
 
         with zipfile.ZipFile(zip_path, 'r') as zip_ref:
@@ -1244,7 +1258,8 @@ def stress_testing_api():
         stress_id = request.args.get('stress_id')
         stress_type = request.args.get('stress_type')
         namespace = request.args.get('namespace')
-        app_list = request.args.get('app_list').split(',')
+        app_list_text = request.args.get('app_list') or ''
+        app_list = [item.strip() for item in regex.split(r'[,|]', app_list_text) if item.strip()]
         port = request.args.get('port')
         core_api = request.args.get('core_api')
         test_data = request.args.get('test_data')
@@ -1739,6 +1754,5 @@ if __name__ == '__main__':
     # 启动 DNS UDP 服务器 (端口5053) 和 gRPC 服务器 (端口5054)
     start_dns_servers()
 
-    app.run(debug=True, host='0.0.0.0', port=5002)
+    app.run(debug=False, use_reloader=False, host='0.0.0.0', port=5002)
         
-

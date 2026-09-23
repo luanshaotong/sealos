@@ -11,6 +11,7 @@ const MAX_LOGIN_ATTEMPTS = Number(process.env.MAX_LOGIN_ATTEMPTS || 5);
 const LOGIN_LOCK_MINUTES = Number(process.env.LOGIN_LOCK_MINUTES || 30);
 const SESSION_COOKIE = 'lp_session';
 const CSRF_COOKIE = 'lp_csrf';
+const CSRF_TOKEN = process.env.CSRF_TOKEN || 'SEALOS_CSRF_TOKEN';
 
 const getClientIp = (req: NextApiRequest) => {
   const forwardedFor = req.headers['x-forwarded-for'];
@@ -316,7 +317,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
     }
 
     clearLoginFailure(req, username);
-    const csrfToken = crypto.randomBytes(32).toString('base64url');
+    const csrfToken = CSRF_TOKEN;
     setSecurityCookies(res, ticket, csrfToken);
 
     jsonRes(res, {

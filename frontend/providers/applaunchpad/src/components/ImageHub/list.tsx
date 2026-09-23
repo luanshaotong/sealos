@@ -641,54 +641,68 @@ const AppList = ({
     <Flex alignItems={'center'} w={'100px'}>
       基础镜像: <span style={{ color: 'red' }}>✳</span>
     </Flex>
-    <Select
+    <Input
       w={'300px'}
       errorBorderColor="red.300"
       borderColor={'#02A7F0'}
       isInvalid={constructError.constructImage !== ''}
       _hover={{ borderColor: '#02A7F0' }}
+      placeholder="输入或搜索基础镜像"
+      list="construct-image-options"
       value={constructImage}
       onChange={
         (e) => {
-          setConstructImage(e.target.value);
-          getImageList(e.target.value)
+          const value = e.target.value;
+          setConstructImage(value);
+          setSelectVersion('');
+          setImages([]);
           setError((prev) => ({ ...prev, constructImage: '' }));
+          if ((data?.items || []).some((item: any) => item.image === value)) {
+            getImageList(value);
+          }
         }
       }
-    >
-      <option value="">请选择</option>
+      onBlur={() => {
+        if (constructImage) {
+          getImageList(constructImage);
+        }
+      }}
+    />
+    <datalist id="construct-image-options">
       {(data?.items || [])
-        .sort((a, b) => a.image.localeCompare(b.image))  // 添加排序
+        .sort((a, b) => a.image.localeCompare(b.image))
         .map((item: any) => (
           <option key={item.created} value={item.image}>
             {item.image}
           </option>
         ))}
-    </Select>
+    </datalist>
   </Flex>
             <Flex alignItems={'center'} mt={'12px'} gap={'12px'}>
               <Flex alignItems={'center'} w={'100px'}>
                 基础镜像版本: <span style={{ color: 'red' }}>✳</span>
               </Flex>
-              <Select
+              <Input
                 w={'300px'}
                 errorBorderColor="red.300"
                 borderColor={'#02A7F0'}
                 _hover={{ borderColor: '#02A7F0' }}
+                placeholder="输入或搜索版本"
+                list="construct-image-version-options"
                 value={selectVersion}
                 onChange={
                   (e) => {
                     setSelectVersion(e.target.value);
                   }
                 }
-              >
-                <option value="">请选择</option>
+              />
+              <datalist id="construct-image-version-options">
                 {images.map((item: any) => (
                   <option key={item} value={item}>
                     {item}
                   </option>
                 ))}
-              </Select>
+              </datalist>
             </Flex>
 
             <Flex alignItems={'center'} gap={'12px'} mt={'12px'}>

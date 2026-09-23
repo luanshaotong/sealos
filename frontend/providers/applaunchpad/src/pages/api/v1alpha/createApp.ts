@@ -1,5 +1,6 @@
 import { formData2Yamls } from '@/pages/app/edit';
-import { authSession } from '@/services/backend/auth';
+import { authSession, getAdminAuthorization } from '@/services/backend/auth';
+import { syncGlobalConfigMapToAllNamespaces } from '@/services/backend/configmap';
 import { getK8s } from '@/services/backend/kubernetes';
 import { jsonRes } from '@/services/backend/response';
 import { ApiResp } from '@/services/kubernet';
@@ -23,6 +24,15 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
     const yamls = parseYamls.map((item) => item.value);
 
     const result = await applyYamlList(yamls, 'create', reqNamespace);
+
+    try {
+      const { k8sCore } = await getK8s({
+        kubeconfig: await getAdminAuthorization(req.headers)
+      });
+      await syncGlobalConfigMapToAllNamespaces(k8sCore);
+    } catch (syncErr) {
+      console.error('sync global configmap after v1alpha app create failed:', syncErr);
+    }
 
     jsonRes(res, { data: result });
   } catch (err: any) {

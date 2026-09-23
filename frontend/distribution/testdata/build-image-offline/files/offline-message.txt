@@ -1,0 +1,2 @@
+This file is copied into the image by the applaunchpad image build API test.
+The Dockerfile uses FROM scratch, so the build does not pull from the network.

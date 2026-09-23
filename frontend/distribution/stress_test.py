@@ -100,53 +100,104 @@ def delete_result_by_id(id):
 import subprocess
 import json
 import requests
+import shlex
+
+def run_cmd(args, check=True):
+    print('run command: ', ' '.join(shlex.quote(str(item)) for item in args))
+    result = subprocess.run(args, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+    if result.stdout:
+        print(result.stdout)
+    if result.stderr:
+        print(result.stderr)
+    if check and result.returncode != 0:
+        raise RuntimeError(result.stderr.strip() or result.stdout.strip() or 'command failed')
+    return result
+
+def get_workload(appname, namespace):
+    for workload_type in ['deployment', 'statefulset']:
+        result = run_cmd([
+            'kubectl',
+            '-n',
+            namespace,
+            'get',
+            workload_type,
+            appname,
+            '-o',
+            'json',
+            '--kubeconfig=/etc/kubernetes/admin.conf'
+        ], check=False)
+        if result.returncode == 0 and result.stdout.strip():
+            return workload_type, json.loads(result.stdout)
+    raise RuntimeError('未找到 Deployment 或 StatefulSet: {}/{}'.format(namespace, appname))
 
 def change_resource(appname, namespace, cpu, memory):
-    cmd_get_json_data = 'kubectl -n %s get deployment %s -o json --kubeconfig=/etc/kubernetes/admin.conf' % (namespace, appname)
-    p = subprocess.Popen(cmd_get_json_data, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-    p.wait()
-    json_data = p.stdout.read()
-    print(json_data)
-    
-    json_data = json_data.decode('utf-8')
-    json_data = json.loads(json_data)
-    print(json_data)
+    workload_type, json_data = get_workload(appname, namespace)
 
-    # change resource
-    json_data['spec']['template']['spec']['containers'][0]['resources']['requests']['cpu'] = cpu
-    json_data['spec']['template']['spec']['containers'][0]['resources']['requests']['memory'] = memory
-    json_data['spec']['template']['spec']['containers'][0]['resources']['limits']['cpu'] = cpu
-    json_data['spec']['template']['spec']['containers'][0]['resources']['limits']['memory'] = memory
-    
-    cmd = 'kubectl -n %s patch deployment %s --kubeconfig=/etc/kubernetes/admin.conf -p \'%s\'' % (namespace, appname, json.dumps(json_data))
-    print(cmd)
-    p = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-    p.wait()
-    print(p.stdout.read())
-    print(p.stderr.read())
+    containers = json_data['spec']['template']['spec'].get('containers', [])
+    if not containers:
+        raise RuntimeError('{} {} 没有容器配置'.format(workload_type, appname))
+
+    for container in containers:
+        resources = container.setdefault('resources', {})
+        requests = resources.setdefault('requests', {})
+        limits = resources.setdefault('limits', {})
+        requests['cpu'] = cpu
+        requests['memory'] = memory
+        limits['cpu'] = cpu
+        limits['memory'] = memory
+
+    patch = {
+        'spec': {
+            'template': {
+                'spec': {
+                    'containers': containers
+                }
+            }
+        }
+    }
+
+    run_cmd([
+        'kubectl',
+        '-n',
+        namespace,
+        'patch',
+        workload_type,
+        appname,
+        '--type=merge',
+        '-p',
+        json.dumps(patch),
+        '--kubeconfig=/etc/kubernetes/admin.conf'
+    ])
 
 def check_pod_status(appname, namespace):
-    cmd = 'kubectl -n %s get pods -l app=%s --kubeconfig=/etc/kubernetes/admin.conf | wc -l' % (namespace, appname)
-    p = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-    p.wait()
-    out = p.stdout.read().decode('utf-8').strip()
-    print(out)
-    print(p.stderr.read())
-
-    if out != '2':
+    result = run_cmd([
+        'kubectl',
+        '-n',
+        namespace,
+        'get',
+        'pods',
+        '-l',
+        'app={}'.format(appname),
+        '-o',
+        'json',
+        '--kubeconfig=/etc/kubernetes/admin.conf'
+    ], check=False)
+    if result.returncode != 0:
         print('Pod not ready')
         return False
 
-    cmd = 'kubectl -n %s get pods -l app=%s --kubeconfig=/etc/kubernetes/admin.conf' % (namespace, appname)
-    p = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-    p.wait()
-    out = p.stdout.read().decode('utf-8').strip()
-    print(out)
-    print(p.stderr.read())
+    pods = json.loads(result.stdout).get('items', [])
+    if not pods:
+        print('Pod not ready')
+        return False
 
-    if out.find('Running') != -1:
-        return True
-    return False
+    for pod in pods:
+        if pod.get('status', {}).get('phase') != 'Running':
+            return False
+        statuses = pod.get('status', {}).get('containerStatuses', [])
+        if not statuses or not all(item.get('ready') for item in statuses):
+            return False
+    return True
 
 def transform_cpu(cpu):
     if cpu.endswith('m'):
@@ -159,21 +210,52 @@ def transform_memory(memory):
     return int(memory[:-2])
 
 def get_pod_usage(appname, namespace):
-    cmd = 'kubectl -n %s top pod -l app=%s --kubeconfig=/etc/kubernetes/admin.conf | grep %s | awk \'{print $2, $3}\'' % (namespace, appname, appname)
-    p = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-    p.wait()
-    output = p.stdout.read().decode('utf-8')
-    print(p.stderr.read())
-    usages = output.split(' ')
+    result = run_cmd([
+        'kubectl',
+        '-n',
+        namespace,
+        'top',
+        'pod',
+        '-l',
+        'app={}'.format(appname),
+        '--no-headers',
+        '--kubeconfig=/etc/kubernetes/admin.conf'
+    ], check=False)
+    if result.returncode != 0:
+        raise RuntimeError(result.stderr.strip() or '获取 Pod 资源使用量失败')
+    output = result.stdout.strip()
+    if not output:
+        raise RuntimeError('未获取到 Pod 资源使用量')
+    lines = output.splitlines()
+    total_cpu = 0
+    total_memory = 0
+    for line in lines:
+        usages = line.split()
+        if len(usages) < 3:
+            continue
+        total_cpu += transform_cpu(usages[1].strip())
+        total_memory += transform_memory(usages[2].strip())
     print(usages)
-    cpu_usage = usages[0].strip()
-    memory_usage = usages[1].strip()
-    return transform_cpu(cpu_usage), transform_memory(memory_usage)
+    return total_cpu, total_memory
 
 import asyncio
 import aiohttp
 import time
 import threading
+import os
+
+INITIAL_CPU = float(os.getenv('STRESS_INITIAL_CPU_CORES', '0.1'))
+INITIAL_MEMORY_GI = float(os.getenv('STRESS_INITIAL_MEMORY_GI', '0.125'))
+
+def format_cpu(cpu):
+    if cpu < 1:
+        return '{}m'.format(int(cpu * 1000))
+    return str(int(cpu)) if cpu == int(cpu) else str(cpu)
+
+def format_memory(memory_gi):
+    if memory_gi < 1:
+        return '{}Mi'.format(int(memory_gi * 1024))
+    return '{}Gi'.format(int(memory_gi)) if memory_gi == int(memory_gi) else '{}Gi'.format(memory_gi)
 
 async def single_test(url, test_data, start_time):
     async with aiohttp.ClientSession() as session:
@@ -236,13 +318,30 @@ def stress_test(id, test_type, namespace, appnames, port, url, test_data, qps, m
     thread.start()
     return 'OK'
 
+def mark_result_failed(id, reason=''):
+    conn = sqlite3.connect(DATABASE)
+    cursor = conn.cursor()
+    cursor.execute('''
+    UPDATE results SET status = 'failed', suggested_resources = ? WHERE id = ?
+    ''', (reason, id))
+    conn.commit()
+    conn.close()
+
 def stress_test_subprocess(id, test_type, namespace, appnames, port, url, test_data, qps, max_latency):
+    try:
+        return stress_test_subprocess_inner(id, test_type, namespace, appnames, port, url, test_data, qps, max_latency)
+    except Exception as e:
+        print('stress test failed: ', e)
+        mark_result_failed(id, str(e))
+        return 'Failed'
+
+def stress_test_subprocess_inner(id, test_type, namespace, appnames, port, url, test_data, qps, max_latency):
     usages = {}
     max_usages = {}
 
     for appname in appnames:
-        usages[appname] = [1, 2]
-        change_resource(appname, namespace, '1', '2Gi')
+        usages[appname] = [INITIAL_CPU, INITIAL_MEMORY_GI]
+        change_resource(appname, namespace, format_cpu(INITIAL_CPU), format_memory(INITIAL_MEMORY_GI))
         
         ready = False
         for _ in range(100):
@@ -251,14 +350,7 @@ def stress_test_subprocess(id, test_type, namespace, appnames, port, url, test_d
                 ready = True
                 break
         if not ready:
-            conn = sqlite3.connect(DATABASE)
-            cursor = conn.cursor()
-            cursor.execute('''
-            UPDATE results SET status = 'failed' WHERE id = ?
-            ''', (id,))
-            conn.commit()
-            conn.close()
-
+            mark_result_failed(id, 'Pod 未就绪')
             print("result: ", list_results(id, test_type))
             return 'Failed'
         
@@ -274,14 +366,7 @@ def stress_test_subprocess(id, test_type, namespace, appnames, port, url, test_d
                 time.sleep(1)
         
         if not ready:
-            conn = sqlite3.connect(DATABASE)
-            cursor = conn.cursor()
-            cursor.execute('''
-            UPDATE results SET status = 'failed' WHERE id = ?
-            ''', (id,))
-            conn.commit()
-            conn.close()
-
+            mark_result_failed(id, '未获取到 Pod 资源使用量')
             print("result: ", list_results(id, test_type))
             return 'Failed'
 
@@ -309,7 +394,7 @@ def stress_test_subprocess(id, test_type, namespace, appnames, port, url, test_d
                     break
                 usages[appname][0] = usages[appname][0] * 2
                 usages[appname][1] = usages[appname][1] * 2
-                change_resource(appname, namespace, str(usages[appname][0]), str(usages[appname][1])+ 'Gi')
+                change_resource(appname, namespace, format_cpu(usages[appname][0]), format_memory(usages[appname][1]))
 
                 ready = False
                 for _ in range(100):
@@ -318,14 +403,7 @@ def stress_test_subprocess(id, test_type, namespace, appnames, port, url, test_d
                         ready = True
                         break
                 if not ready:
-                    conn = sqlite3.connect(DATABASE)
-                    cursor = conn.cursor()
-                    cursor.execute('''
-                    UPDATE results SET status = 'failed' WHERE id = ?
-                    ''', (id,))
-                    conn.commit()
-                    conn.close()
-
+                    mark_result_failed(id, '扩容后 Pod 未就绪')
                     print("result: ", list_results(id, test_type))
                     return 'Failed'
                 
@@ -340,14 +418,7 @@ def stress_test_subprocess(id, test_type, namespace, appnames, port, url, test_d
                         time.sleep(1)
                 
                 if not ready:
-                    conn = sqlite3.connect(DATABASE)
-                    cursor = conn.cursor()
-                    cursor.execute('''
-                    UPDATE results SET status = 'failed' WHERE id = ?
-                    ''', (id,))
-                    conn.commit()
-                    conn.close()
-
+                    mark_result_failed(id, '扩容后未获取到 Pod 资源使用量')
                     print("result: ", list_results(id, test_type))
                     return 'Failed'
         

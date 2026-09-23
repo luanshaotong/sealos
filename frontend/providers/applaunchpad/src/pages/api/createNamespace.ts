@@ -3,6 +3,7 @@ import { getK8s } from '@/services/backend/kubernetes';
 import { jsonRes } from '@/services/backend/response';
 import { ApiResp } from '@/services/kubernet';
 import type { NextApiRequest, NextApiResponse } from 'next';
+import { syncGlobalConfigMapToNamespace } from '@/services/backend/configmap';
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse<ApiResp>) {
   try {
@@ -33,7 +34,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
         namespace: ns,
         annotations: {
           'sealos/username': ns, // Assuming the namespace name is used as the username
-          'sealos/roleId': roleId
+          'sealos/roleId': `${roleId || ''}`
         }
       },
       spec: {
@@ -47,27 +48,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
       }
     };
 
-    
-    const name = process.env.GLOBAL_CONFIGMAP_NAME || 'global-configmap';
-
-    const cm_namespace = "default";
-
-    const configMap = await k8sCore.readNamespacedConfigMap(name, cm_namespace);
-
-    
-    const new_configMap = {
-        apiVersion: 'v1',
-        kind: 'ConfigMap',
-        metadata: {
-        name: name,
-        namespace: ns
-        },
-        data: {
-        ...configMap.body.data
-        }
-    };
-    
-    await k8sCore.createNamespacedConfigMap(ns, new_configMap);
+    await syncGlobalConfigMapToNamespace(k8sCore, ns);
 
     const resourceQuotaResult = await k8sCore.createNamespacedResourceQuota(ns, resourceQuota);
 

@@ -6,6 +6,7 @@ const CSRF_COOKIE = 'lp_csrf';
 
 const authRequired = process.env.AUTH_REQUIRED_ALL === 'true';
 const csrfEnabled = process.env.CSRF_ENABLED !== 'false';
+const fixedCsrfToken = process.env.CSRF_TOKEN || '';
 
 const publicPaths = [
   '/login',
@@ -89,7 +90,12 @@ export function middleware(req: NextRequest) {
     if (csrfEnabled && unsafeMethod && !isPublicPath(pathname)) {
       const csrfCookie = req.cookies.get(CSRF_COOKIE)?.value;
       const csrfHeader = req.headers.get('x-csrf-token');
-      if (!isSameOrigin(req) || !csrfCookie || csrfCookie !== csrfHeader) {
+      const csrfMatched = fixedCsrfToken
+        ? csrfHeader === fixedCsrfToken
+        : csrfCookie && csrfCookie === csrfHeader;
+      const originMatched = fixedCsrfToken ? true : isSameOrigin(req);
+
+      if (!originMatched || !csrfMatched) {
         return rejectJson(req, 403, 'CSRF 校验失败');
       }
     }
