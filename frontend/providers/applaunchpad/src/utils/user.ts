@@ -1,6 +1,8 @@
 // use client;
 import yaml from 'js-yaml';
 
+export const LOGIN_STATE_EVENT = 'applaunchpad-login-state-change';
+
 export const getUserKubeConfig = () => {
   let kubeConfig: string = '';
   //process.env.NODE_ENV === 'development' ? process.env.NEXT_PUBLIC_MOCK_USER || '' : '';
@@ -46,6 +48,9 @@ export const setUserIsLogin = (isLogin: boolean, session: string) => {
     localStorage.removeItem('session');
     document.cookie = 'lp_session=; Path=/; Max-Age=0; SameSite=Lax';
     document.cookie = 'lp_csrf=; Path=/; Max-Age=0; SameSite=Lax';
+  }
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent(LOGIN_STATE_EVENT, { detail: { isLogin } }));
   }
 };
 

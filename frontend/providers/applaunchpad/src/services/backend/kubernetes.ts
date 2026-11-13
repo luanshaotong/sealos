@@ -46,6 +46,36 @@ export function K8sApi(config: string): k8s.KubeConfig {
   return kc;
 }
 
+const stringifyStringMapValues = (value: any) => {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return value;
+
+  Object.keys(value).forEach((key) => {
+    if (value[key] === undefined || value[key] === null) {
+      delete value[key];
+    } else {
+      value[key] = String(value[key]);
+    }
+  });
+
+  return value;
+};
+
+const normalizeK8sStringMaps = (value: any): any => {
+  if (!value || typeof value !== 'object') return value;
+  if (Array.isArray(value)) {
+    value.forEach(normalizeK8sStringMaps);
+    return value;
+  }
+
+  if (value.labels) stringifyStringMapValues(value.labels);
+  if (value.annotations) stringifyStringMapValues(value.annotations);
+  if (value.matchLabels) stringifyStringMapValues(value.matchLabels);
+  if (value.nodeSelector) stringifyStringMapValues(value.nodeSelector);
+
+  Object.values(value).forEach(normalizeK8sStringMaps);
+  return value;
+};
+
 export async function CreateYaml(
   kc: k8s.KubeConfig,
   specs: k8s.KubernetesObject[]
@@ -56,6 +86,7 @@ export async function CreateYaml(
 
   try {
     for await (const spec of validSpecs) {
+      normalizeK8sStringMaps(spec);
       spec.metadata = spec.metadata || {};
       spec.metadata.annotations = spec.metadata.annotations || {};
       delete spec.metadata.annotations['kubectl.kubernetes.io/last-applied-configuration'];
@@ -92,6 +123,7 @@ export async function replaceYaml(
   const succeed = [] as k8s.KubernetesObject[];
 
   for (const spec of validSpecs) {
+    normalizeK8sStringMaps(spec);
     spec.metadata = spec.metadata || {};
     spec.metadata.annotations = spec.metadata.annotations || {};
     delete spec.metadata.annotations['kubectl.kubernetes.io/last-applied-configuration'];

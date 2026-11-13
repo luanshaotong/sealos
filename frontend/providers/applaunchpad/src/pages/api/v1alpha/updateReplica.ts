@@ -6,6 +6,7 @@ import { jsonRes } from '@/services/backend/response';
 import { maxReplicasKey, minReplicasKey, pauseKey } from '@/constants/app';
 import { json2HPA } from '@/utils/deployYaml2Json';
 import { AppEditType } from '@/types/app';
+import { patchAppScale } from '@/services/backend/replicas';
 
 type UpdateReplicaParams = {
   appName: string;
@@ -64,13 +65,13 @@ export async function PauseApp({
   try {
     const { body: hpa } = await k8sAutoscaling.readNamespacedHorizontalPodAutoscaler(
       appName,
-      namespace
+      reqNamespace
     );
     restartAnnotations.target = hpa?.spec?.metrics?.[0]?.resource?.name || 'cpu';
     restartAnnotations.value = `${
       hpa?.spec?.metrics?.[0]?.resource?.target?.averageUtilization || 50
     }`;
-    requestQueue.push(k8sAutoscaling.deleteNamespacedHorizontalPodAutoscaler(appName, namespace)); // delete HorizontalPodAutoscaler
+    requestQueue.push(k8sAutoscaling.deleteNamespacedHorizontalPodAutoscaler(appName, reqNamespace)); // delete HorizontalPodAutoscaler
   } catch (error: any) {
     if (error?.statusCode !== 404) {
       return Promise.reject('无法读取到hpa');
@@ -81,7 +82,7 @@ export async function PauseApp({
   app.metadata.annotations[pauseKey] = JSON.stringify(restartAnnotations);
   app.spec.replicas = 0;
 
-  requestQueue.push(apiClient.replace(app));
+  requestQueue.push(patchAppScale(apiClient, app, 0, app.metadata.annotations[pauseKey]));
 
   return (await Promise.all(requestQueue)).map((item) => item?.body || item);
 }
@@ -104,7 +105,8 @@ export async function StartApp({
 
   app.spec.replicas = +replica;
 
-  const requestQueue: Promise<any>[] = [apiClient.replace(app)];
+  const scaleResult = await patchAppScale(apiClient, app, +replica, null);
+  const requestQueue: Promise<any>[] = [Promise.resolve(scaleResult)];
 
   if (app.metadata.annotations[pauseKey]) {
     const pauseData: {
@@ -121,7 +123,7 @@ export async function StartApp({
         hpa: {
           use: true,
           target: pauseData.target,
-          value: pauseData.value,
+          value: Number(pauseData.value) / 10,
           minReplicas: app.metadata.annotations[minReplicasKey]
             ? app.metadata.annotations[minReplicasKey]
             : '1',
@@ -129,7 +131,7 @@ export async function StartApp({
             ? app.metadata.annotations[maxReplicasKey]
             : '2'
         }
-      } as unknown as AppEditType);
+      } as unknown as AppEditType, app.kind === 'StatefulSet' ? 'StatefulSet' : 'Deployment');
 
       requestQueue.push(applyYamlList([hpaYaml], 'create', reqNamespace));
     }

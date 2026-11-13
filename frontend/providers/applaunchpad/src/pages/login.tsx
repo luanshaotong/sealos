@@ -82,16 +82,16 @@ export default function LoginForm() {
         isClosable: true,
         position: 'top'
       });
-      if(showMenu){
-        router.push('/apps?showMenu=true');
-      }else{
-        router.push('/apps');
-      }
+      const target = showMenu ? '/apps?showMenu=true' : '/apps';
+      window.location.assign(target);
     } catch (error) {
       toast({
         position: 'top',
         title: '登录失败',
-        description: '请检查用户名和密码',
+        description:
+          typeof error === 'string'
+            ? error
+            : (error as any)?.message || (error as any)?.errMessage || '请检查用户名和密码',
         status: 'error',
         duration: 3000,
         isClosable: true

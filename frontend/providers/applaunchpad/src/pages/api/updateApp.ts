@@ -200,18 +200,26 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
     };
 
     // update pvc data
-    const stateFulSet = stateFulSetYaml ? (yaml.load(stateFulSetYaml) as V1StatefulSet) : {};
-    // filer delete pvc
-    const {
-      body: { items: allPvc }
-    } = await k8sCore.listNamespacedPersistentVolumeClaim(
-      reqNamespace,
-      undefined,
-      undefined,
-      undefined,
-      undefined,
-      `app=${appName}`
-    );
+    const stateFulSet = stateFulSetYaml ? (yaml.load(stateFulSetYaml) as V1StatefulSet) : undefined;
+    if (
+      stateFulSetYaml &&
+      (stateFulSet?.kind !== 'StatefulSet' ||
+        stateFulSet.metadata?.name !== appName ||
+        !Array.isArray(stateFulSet.spec?.volumeClaimTemplates))
+    ) {
+      throw new Error('Invalid StatefulSet storage definition');
+    }
+    // An omitted storage definition is not a request to delete existing claims.
+    const allPvc = stateFulSet
+      ? (await k8sCore.listNamespacedPersistentVolumeClaim(
+          reqNamespace,
+          undefined,
+          undefined,
+          undefined,
+          undefined,
+          `app=${appName}`
+        )).body.items
+      : [];
 
     // pvc update
     await Promise.all(

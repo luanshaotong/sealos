@@ -44,6 +44,18 @@ const buildPreferredNodeAffinity = (nodeName?: string) =>
       }
     : {};
 
+const parseCommandInput = (value: string, splitWords: boolean): string[] | undefined => {
+  if (!value) return undefined;
+  try {
+    const parsed: unknown = JSON.parse(value);
+    if (Array.isArray(parsed) && parsed.every((item) => typeof item === 'string')) return parsed;
+    if (typeof parsed === 'string') return [parsed];
+  } catch {
+    // Plain command text and arguments do not need to be JSON.
+  }
+  return splitWords ? value.split(' ').filter(Boolean) : [value];
+};
+
 export const json2DeployCr = (data: AppEditType, type: 'deployment' | 'statefulset') => {
   const totalStorage = data.storeList.reduce((acc, item) => acc + item.value, 0);
 
@@ -164,22 +176,8 @@ export const json2DeployCr = (data: AppEditType, type: 'deployment' | 'statefuls
           // ...(!!container.gpu?.type ? { [gpuResourceKey]: container.gpu.amount } : {})
         }
       },
-      command: (() => {
-        if (!container.runCMD) return undefined;
-        try {
-          return JSON.parse(container.runCMD);
-        } catch (error) {
-          return container.runCMD.split(' ').filter((item) => item);
-        }
-      })(),
-      args: (() => {
-        if (!container.cmdParam) return undefined;
-        try {
-          return JSON.parse(container.cmdParam) as string[];
-        } catch (error) {
-          return [container.cmdParam];
-        }
-      })(),
+      command: parseCommandInput(container.runCMD, true),
+      args: parseCommandInput(container.cmdParam, false),
       ports: container.networks.map((item, i) => ({
         containerPort: item.port,
         name: item.portName
@@ -532,7 +530,10 @@ export const json2Secret = (data: AppEditContainerType) => {
   return yaml.dump(template);
 };
 
-export const json2HPA = (data: AppEditType) => {
+export const json2HPA = (
+  data: AppEditType,
+  workloadKind: 'Deployment' | 'StatefulSet' = data.storeList?.length ? 'StatefulSet' : 'Deployment'
+) => {
   const template = {
     apiVersion: 'autoscaling/v2',
     kind: 'HorizontalPodAutoscaler',
@@ -542,7 +543,7 @@ export const json2HPA = (data: AppEditType) => {
     spec: {
       scaleTargetRef: {
         apiVersion: 'apps/v1',
-        kind: 'Deployment',
+        kind: workloadKind,
         name: data.appName
       },
       minReplicas: str2Num(data.hpa?.minReplicas),

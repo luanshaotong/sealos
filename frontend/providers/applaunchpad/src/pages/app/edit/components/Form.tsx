@@ -1482,12 +1482,7 @@ const Form = ({
                                 //     : 'grayModern.100'
                                 // }
                                 placeholder={`${t('Such as')} /bin/bash -c`}
-                                // {...register(`containers.${containerIndex}.runCMD`, {
-                                //   maxLength: {
-                                //     value: 200,
-                                //     message: t('Run command cannot exceed 200 characters') || 'Run command cannot exceed 200 characters'
-                                //   }
-                                // })}
+                                {...register(`containers.${containerIndex}.runCMD`)}
                               />
                               {errors?.containers?.[containerIndex]?.runCMD && (
                                 <Box color="red.500" fontSize="sm" mt={1}>
@@ -1510,12 +1505,7 @@ const Form = ({
                                 //     : 'grayModern.100'
                                 // }
                                 placeholder={`${t('Such as')} sleep 10 && /entrypoint.sh db createdb`}
-                                // {...register(`containers.${containerIndex}.cmdParam`, {
-                                //   maxLength: {
-                                //     value: 200,
-                                //     message: t('Command parameters cannot exceed 200 characters') || 'Command parameters cannot exceed 200 characters'
-                                //   }
-                                // })}
+                                {...register(`containers.${containerIndex}.cmdParam`)}
                               />
                               {errors?.containers?.[containerIndex]?.cmdParam && (
                                 <Box color="red.500" fontSize="sm" mt={1}>

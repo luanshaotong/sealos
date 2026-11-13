@@ -6,6 +6,7 @@ import { jsonRes } from '@/services/backend/response';
 import { pauseKey, minReplicasKey, maxReplicasKey } from '@/constants/app';
 import { json2HPA } from '@/utils/deployYaml2Json';
 import { AppEditType } from '@/types/app';
+import { patchAppScale } from '@/services/backend/replicas';
 
 /* start app. */
 export default async function handler(req: NextApiRequest, res: NextApiResponse<ApiResp>) {
@@ -40,7 +41,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
       ? +app.metadata.annotations[minReplicasKey]
       : 1;
 
-    const requestQueue: Promise<any>[] = [apiClient.replace(app)];
+    await patchAppScale(apiClient, app, app.spec.replicas, null);
     // create hpa
     if (pauseData.target) {
       const hpaYaml = json2HPA({
@@ -48,7 +49,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
         hpa: {
           use: true,
           target: pauseData.target,
-          value: pauseData.value,
+          value: Number(pauseData.value) / 10,
           minReplicas: app.metadata.annotations[minReplicasKey]
             ? app.metadata.annotations[minReplicasKey]
             : '1',
@@ -56,12 +57,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
             ? app.metadata.annotations[maxReplicasKey]
             : '2'
         }
-      } as unknown as AppEditType);
+      } as unknown as AppEditType, app.kind === 'StatefulSet' ? 'StatefulSet' : 'Deployment');
 
-      requestQueue.push(applyYamlList([hpaYaml], 'create', reqNamespace));
+      await applyYamlList([hpaYaml], 'create', reqNamespace);
     }
-
-    await Promise.all(requestQueue);
 
     jsonRes(res);
   } catch (err: any) {

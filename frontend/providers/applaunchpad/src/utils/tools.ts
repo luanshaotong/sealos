@@ -8,6 +8,7 @@ import type { AppEditContainerType, AppPatchPropsType } from '@/types/app';
 import { YamlKindEnum } from './adapt';
 import { useTranslation } from 'next-i18next';
 import * as jsonpatch from 'fast-json-patch';
+import type { V1PodSpec } from '@kubernetes/client-node';
 
 /**
  * copy text data
@@ -251,6 +252,7 @@ export function downLoadBold(content: BlobPart, type: string, fileName: string) 
 }
 
 export const addConfigMapToYamlList = (yamlList: string[], configMapName: string, mountPath: string) => {
+  if (!mountPath || !configMapName) return yamlList;
   
   let new_yamlList: any[] = [];
 
@@ -309,6 +311,41 @@ export const addConfigMapToYamlList = (yamlList: string[], configMapName: string
   return new_yamlList;
 }
 
+const getNodeSchedulingPatch = (current: V1PodSpec = {} as V1PodSpec, desired: V1PodSpec) => {
+  const patch: Record<string, any> = {};
+  if (current.nodeName) patch.nodeName = null;
+  if (current.nodeSelector?.['kubernetes.io/hostname'] !== undefined) {
+    patch.nodeSelector = { 'kubernetes.io/hostname': null };
+  }
+
+  const nodeAffinity = current.affinity?.nodeAffinity;
+  const preferred = nodeAffinity?.preferredDuringSchedulingIgnoredDuringExecution || [];
+  const otherPreferences = preferred.filter(({ preference }) => {
+    const expressions = preference.matchExpressions || [];
+    return !(
+      expressions.length === 1 &&
+      expressions[0].key === 'kubernetes.io/hostname' &&
+      expressions[0].operator === 'In' &&
+      !preference.matchFields?.length
+    );
+  });
+  const nextPreferred = [
+    ...otherPreferences,
+    ...(desired.affinity?.nodeAffinity?.preferredDuringSchedulingIgnoredDuringExecution || [])
+  ];
+  if (JSON.stringify(preferred) !== JSON.stringify(nextPreferred)) {
+    // Merge patches need explicit nulls to remove scheduling fields.
+    patch.affinity = {
+      ...current.affinity,
+      nodeAffinity: {
+        ...nodeAffinity,
+        preferredDuringSchedulingIgnoredDuringExecution: nextPreferred.length ? nextPreferred : null
+      }
+    };
+  }
+  return patch;
+};
+
 /**
  * patch yamlList and get action
  */
@@ -356,9 +393,37 @@ export const patchYamlList = ({
     );
 
     if (oldFormJson) {
-      const patchRes = jsonpatch.compare(oldFormJson, newYamlJson);
+      const isWorkload =
+        newYamlJson.kind === YamlKindEnum.Deployment ||
+        newYamlJson.kind === YamlKindEnum.StatefulSet;
+      const currentResource = crYamlList.find(
+        (item) => item.kind === newYamlJson.kind && item.metadata?.name === newYamlJson.metadata?.name
+      );
+      const schedulingPatch = isWorkload
+        ? getNodeSchedulingPatch(
+            (currentResource as any)?.spec?.template?.spec,
+            (newYamlJson as any).spec.template.spec
+          )
+        : {};
+      const patchRes = jsonpatch.compare(oldFormJson, newYamlJson).filter(
+        (item) => !isWorkload || !(
+          item.path === '/spec/template/spec/affinity' ||
+          item.path.startsWith('/spec/template/spec/affinity/')
+        )
+      );
+      if (
+        newYamlJson.kind === YamlKindEnum.HorizontalPodAutoscaler &&
+        (currentResource as any)?.spec?.scaleTargetRef?.kind !== (newYamlJson as any).spec.scaleTargetRef.kind &&
+        !patchRes.some((item) => item.path === '/spec/scaleTargetRef/kind')
+      ) {
+        patchRes.push({
+          op: 'add',
+          path: '/spec/scaleTargetRef/kind',
+          value: (newYamlJson as any).spec.scaleTargetRef.kind
+        });
+      }
 
-      if (patchRes.length === 0) return;
+      if (patchRes.length === 0 && Object.keys(schedulingPatch).length === 0) return;
 
       /* Generate a new json using the formPatchResult and the crJson */
       const actionsJson = (() => {
@@ -440,6 +505,13 @@ export const patchYamlList = ({
         actionsJson.kind === YamlKindEnum.Deployment ||
         actionsJson.kind === YamlKindEnum.StatefulSet
       ) {
+        const podSpec = (actionsJson as any).spec.template.spec;
+        const { nodeSelector, ...otherSchedulingPatch } = schedulingPatch;
+        Object.assign(podSpec, otherSchedulingPatch);
+        if (nodeSelector) {
+          // Remove only the legacy hostname pin, preserving other selector edits.
+          podSpec.nodeSelector = { ...podSpec.nodeSelector, ...nodeSelector };
+        }
         // @ts-ignore
         let containers = actionsJson.spec.template.spec.containers;
         for (let ii = 0; ii < containers.length; ii++) {

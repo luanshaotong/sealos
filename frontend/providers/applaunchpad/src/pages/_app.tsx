@@ -7,7 +7,7 @@ import { SEALOS_DOMAIN, loadInitData } from '@/store/static';
 import { useUserStore } from '@/store/user';
 import '@/styles/reset.scss';
 import { getLangStore, setLangStore } from '@/utils/cookieUtils';
-import { getMenuList, getUserIsLogin } from '@/utils/user';
+import { getMenuList, getUserIsLogin, LOGIN_STATE_EVENT, setUserIsLogin } from '@/utils/user';
 import { Box, ChakraProvider, Flex, Heading, ListItem, Text, Link, useDisclosure, background, Button } from '@chakra-ui/react';
 import '@sealos/driver/src/driver.css';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -22,7 +22,6 @@ import { useEffect, useState } from 'react';
 import { EVENT_NAME } from 'sealos-desktop-sdk';
 import { createSealosApp, sealosApp } from 'sealos-desktop-sdk/app';
 import Login from './login';
-import { setUserIsLogin } from '@/utils/user';
 import { getParamValue } from '@/utils/tools'
 
 //Binding events.
@@ -61,6 +60,9 @@ const App = ({ Component, pageProps }: AppProps) => {
   const menuList:any[] = getMenuList()
 
   useEffect(() => {
+    const syncLoginStatus = () => {
+      setLoginStatus(getUserIsLogin());
+    };
     const isLogin = getUserIsLogin();
     const showMenu = getParamValue('showMenu')
     setLoginStatus(isLogin)
@@ -100,7 +102,11 @@ const App = ({ Component, pageProps }: AppProps) => {
       //   // }
       // }
     })();
-    return response;
+    window.addEventListener(LOGIN_STATE_EVENT, syncLoginStatus);
+    return () => {
+      window.removeEventListener(LOGIN_STATE_EVENT, syncLoginStatus);
+      response?.();
+    };
   }, []);
 
   // add resize event

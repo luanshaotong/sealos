@@ -4,6 +4,7 @@ import { authSession, getAdminAuthorization } from '@/services/backend/auth';
 import { getK8s } from '@/services/backend/kubernetes';
 import { jsonRes } from '@/services/backend/response';
 import { pauseKey, stopKey } from '@/constants/app';
+import { patchAppScale } from '@/services/backend/replicas';
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse<ApiResp>) {
   const reqNamespace = req.query.namespace as string;
@@ -71,7 +72,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
     app.metadata.annotations[pauseKey] = JSON.stringify(restartAnnotations);
     app.spec.replicas = 0;
 
-    requestQueue.push(apiClient.replace(app));
+    requestQueue.push(patchAppScale(apiClient, app, 0, app.metadata.annotations[pauseKey]));
 
     await Promise.all(requestQueue);
 
